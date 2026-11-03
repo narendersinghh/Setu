@@ -9,6 +9,8 @@ final class AI{
     'deepseek'=>['name'=>'DeepSeek','url'=>'https://platform.deepseek.com/api_keys','models'=>'deepseek-chat','steps'=>['Go to platform.deepseek.com and sign in.','Top up balance, then create an API key.','Paste it below.'],'note'=>'Low-cost option.'],
     'custom'=>['name'=>'Custom (OpenAI-compatible)','url'=>'','models'=>'any','steps'=>['Use any provider with an OpenAI-compatible /chat/completions endpoint (Together, Mistral, Azure OpenAI proxy, self-hosted…).','Enter the full base URL, e.g. https://api.together.xyz/v1','Enter the key and model name.'],'note'=>'For advanced users.']];}
   // API address (can point to a proxy/gateway in AI Connection → advanced)
+  // OpenAI-compatible chat endpoints
+  static function bases(){return ['openai'=>'https://api.openai.com/v1','openrouter'=>'https://openrouter.ai/api/v1','groq'=>'https://api.groq.com/openai/v1','deepseek'=>'https://api.deepseek.com/v1','custom'=>rtrim(setting('ai_custom_url'),'/')];}
   static function base(){return rtrim(setting('anthropic_base','https://api.anthropic.com'),'/');}
   static function model($p=null){$p=$p?:setting('ai_provider','anthropic');return setting('ai_model_'.$p);}
   // Tokens, cost and web searches of the current call (shown in "View process")
@@ -35,7 +37,7 @@ final class AI{
     catch(Throwable $e){$s=self::$st;Trace::close('err',$e->getMessage(),['tokens_in'=>$s['in'],'tokens_out'=>$s['out'],'cost'=>round($s['cost'],5)]);throw $e;}}
   private static function openai($p,$key,$model,$system,$user,$max,$o){
     $op=$o['op']??'chat';
-    $base=['openai'=>'https://api.openai.com/v1','openrouter'=>'https://openrouter.ai/api/v1','groq'=>'https://api.groq.com/openai/v1','deepseek'=>'https://api.deepseek.com/v1','custom'=>rtrim(setting('ai_custom_url'),'/')][$p]??'';
+    $base=self::bases()[$p]??'';
     if(!$base)throw new Exception('Unknown AI provider.');
     $body=['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]]];
     $body[$p==='openai'?'max_completion_tokens':'max_tokens']=$max;

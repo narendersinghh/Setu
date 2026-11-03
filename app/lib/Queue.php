@@ -4,7 +4,7 @@ final class Queue{
   static function push($type,$ref,$payload=[],$at=null){
     return DB::insert('jobs',['type'=>$type,'ref_id'=>(int)$ref,'payload'=>je($payload),'run_after'=>$at?:date('Y-m-d H:i:s')]);}
   static function due(){return (int)DB::val("SELECT COUNT(*) FROM jobs WHERE status='pending' AND run_after<=NOW()");}
-  static function dueLong(){return (int)DB::val("SELECT COUNT(*) FROM jobs WHERE status='pending' AND run_after<=NOW() AND type IN ('audit','report','prices')");}
+  static function dueLong(){return (int)DB::val("SELECT COUNT(*) FROM jobs WHERE status='pending' AND run_after<=NOW() AND type IN ('audit','report','prices','aipar')");}
   // Progress shown on the lead row and in the activity panel
   static function progress($lid,$pct,$msg){
     // (the AI call itself is logged as its own step with tokens and cost)
@@ -28,8 +28,8 @@ final class Queue{
   static function title($j){$p=jd($j['payload']);$a=(int)$j['attempts']>1?' (attempt '.(int)$j['attempts'].')':'';
     if($j['type']==='audit')return 'Audit started'.$a;
     if($j['type']==='contact')return 'Sending the report'.$a;
-    return ['research'=>'Report · step 1 of 3: market research','write'=>'Report · step 2 of 3: AI writes the report','save'=>'Report · step 2 of 3: saving the AI batch answer','pdf'=>'Report · step 3 of 3: PDF design'][$p['phase']??'research'].$a;}
-  const LONG=['audit','report','prices'];
+    return ['research'=>'Report · step 1 of 3: market research','write'=>'Report · step 2 of 3: AI writes the report','save'=>'Report · step 2 of 3: saving the AI answer','pdf'=>'Report · step 3 of 3: PDF design'][$p['phase']??'research'].$a;}
+  const LONG=['audit','report','prices','aipar'];
   // $quick=true: only short jobs (searches, contact scans, sends, automations) – used by the browser poll,
   // so slow AI steps always run in the detached background worker where web-server time limits do not apply
   static function work($budget=null,$quick=false){
@@ -39,7 +39,7 @@ final class Queue{
     $t0=microtime(true);$n=0;
     self::reapStuck();
     while(microtime(true)-$t0<$budget){
-      $j=DB::row("SELECT * FROM jobs WHERE status='pending' AND run_after<=NOW()".($quick?" AND type NOT IN ('audit','report','prices')":'')." ORDER BY FIELD(type,'search','enrich','auto','audit','report','contact'),id LIMIT 1");
+      $j=DB::row("SELECT * FROM jobs WHERE status='pending' AND run_after<=NOW()".($quick?" AND type NOT IN ('audit','report','prices','aipar')":'')." ORDER BY FIELD(type,'search','enrich','auto','audit','report','contact','prices','batch','aipar'),id LIMIT 1");
       if(!$j)break;
       if(!DB::q("UPDATE jobs SET status='running',locked_at=NOW(),attempts=attempts+1 WHERE id=? AND status='pending'",[$j['id']])->rowCount())continue;
       $tr=in_array($j['type'],['audit','report','contact'],true);
@@ -53,10 +53,10 @@ final class Queue{
   // Jobs killed by the host (timeout) stay "running": retry them, then fail with a clear message
   static function reapStuck(){
     $min=max(3,(int)setting('job_timeout','6'));
-    foreach(DB::all("SELECT * FROM jobs WHERE status='running' AND locked_at<NOW()-INTERVAL IF(type='report',GREATEST(?,8),?) MINUTE",[$min,$min]) as $j){
+    foreach(DB::all("SELECT * FROM jobs WHERE status='running' AND locked_at<NOW()-INTERVAL IF(type IN ('report','aipar'),GREATEST(?,8),?) MINUTE",[$min,$min]) as $j){
       $msg='Timed out – the server stopped this step after '.$min.' min (often a slow AI model or a host time limit).';
       if(in_array($j['type'],['audit','report','contact'],true)){DB::q("UPDATE job_steps SET status='err',detail=? WHERE job_id=? AND status='run'",['The server stopped this step (time limit or crash).',$j['id']]);DB::insert('job_steps',['lead_id'=>$j['ref_id'],'job_id'=>$j['id'],'kind'=>'step','step'=>mb_substr($msg,0,190),'status'=>'err']);}
-      if($j['attempts']<2&&!in_array($j['type'],['search','prices'],true)){DB::q("UPDATE jobs SET status='pending',locked_at=NULL,error=? WHERE id=?",[$msg.' Retrying…',$j['id']]);continue;}
+      if($j['attempts']<2&&!in_array($j['type'],['search','prices','aipar'],true)){DB::q("UPDATE jobs SET status='pending',locked_at=NULL,error=? WHERE id=?",[$msg.' Retrying…',$j['id']]);continue;}
       self::fail($j,new Exception($msg.' Try again, or choose a faster AI model in AI Connection.'),true);}}
   private static function fail($j,$e,$final=false){
     $msg=$e->getMessage();
@@ -69,7 +69,7 @@ final class Queue{
     DB::q("UPDATE jobs SET status='failed',error=? WHERE id=?",[$msg,$j['id']]);
     if($j['type']==='search')DB::update('campaigns',['status'=>'error','error'=>$msg],'id=?',[$j['ref_id']]);
     elseif($j['type']==='auto')Automation::failed($j['ref_id'],$msg);
-    elseif($j['type']==='prices'||$j['type']==='batch')return;
+    elseif(in_array($j['type'],['prices','batch','aipar'],true))return;
     elseif($j['type']!=='enrich'){DB::update('leads',['stage'=>'failed','last_error'=>$msg,'progress_msg'=>'Failed'],'id=?',[$j['ref_id']]);event($j['ref_id'],'error',ucfirst($j['type']).' failed: '.$msg);}}
   private static function handle($j){
     $p=jd($j['payload']);$id=(int)$j['ref_id'];
@@ -82,7 +82,8 @@ final class Queue{
       case 'auto':Automation::step($id);break;
       case 'call':Voice::call($id,$p);break;
       case 'prices':Usage::aiPrices();break;
-      case 'batch':Batch::tick();break;}}
+      case 'batch':Batch::tick();break;
+      case 'aipar':Parallel::run($j['id']);break;}}
   // Map search, one result page per job. Businesses already in your data (any earlier search or Leads) are skipped.
   // Google Places: a free IDs-only request first, so pages with nothing new cost nothing and only new businesses are paid for.
   private static function search($cid,$p){
@@ -160,9 +161,13 @@ final class Queue{
       $brief=Report::research($lid,fn($pct,$m)=>self::progress($lid,$pct,$m));
       self::progress($lid,68,'Queued: AI is about to write the report');
       self::push('report',$lid,['phase'=>'write','brief'=>$brief]+$p);return;}
-    if($ph==='write'&&Batch::on($p)){
+    $bm=$ph==='write'?Batch::mode($p):null;
+    if($bm==='batch'){
       self::progress($lid,70,'Waiting to go to the AI together with the other reports (batch)');
       Batch::add($lid,$p,(array)($p['brief']??[]));return;}
+    if($bm==='parallel'){
+      self::progress($lid,70,'Waiting for a free AI slot ('.Parallel::slots().' reports are written at the same time)');
+      Parallel::add($lid,$p,(array)($p['brief']??[]));return;}
     if($ph==='write'||$ph==='save'){
       $rid=$ph==='save'?Batch::save($lid,$p,fn($pct,$m)=>self::progress($lid,$pct,$m)):Report::write($lid,$p,(array)($p['brief']??[]),fn($pct,$m)=>self::progress($lid,$pct,$m));
       if(!$rid)return;

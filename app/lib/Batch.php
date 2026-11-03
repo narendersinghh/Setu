@@ -3,8 +3,12 @@
 // batch (50% cheaper). Nothing waits on the AI inside a web request – a short job submits the batch, checks it every
 // 20 seconds and, when it has ended, hands each answer to its own short "save" step.
 final class Batch{
-  // Use a batch for this report? (Claude only; Settings → Prospecting → Report delivery → Bulk reports)
-  static function on($p){$m=setting('ai_batch','auto');return setting('ai_provider','anthropic')==='anthropic'&&$m!=='off'&&empty($p['nobatch'])&&($m==='on'||!empty($p['bulk']));}
+  // How a bulk run writes its reports: 'batch' (Claude Message Batches, cheapest), 'parallel' (any provider, several at once) or null (one by one)
+  // Settings → Prospecting → Report delivery → Bulk reports
+  static function mode($p){
+    if(empty($p['bulk'])||!empty($p['nobatch']))return null;
+    $m=setting('ai_batch','parallel');if($m==='off')return null;
+    return $m==='batch'&&setting('ai_provider','anthropic')==='anthropic'?'batch':'parallel';}
   private static function h(){return ['x-api-key: '.setting('ai_key_anthropic'),'anthropic-version: 2026-10-21'];}
   // Queue the report-writing request of a lead for the next batch
   static function add($lid,$p,$brief){
@@ -26,12 +30,12 @@ final class Batch{
   // The batch job: send waiting requests, check sent batches, store finished answers
   static function tick(){
     try{self::run();}
-    finally{if(DB::val("SELECT id FROM ai_batch WHERE status IN ('queued','sent') LIMIT 1")&&!DB::val("SELECT id FROM jobs WHERE type='batch' AND status='pending'"))Queue::push('batch',0,[],date('Y-m-d H:i:s',time()+20));}}
+    finally{if(DB::val("SELECT id FROM ai_batch WHERE mode='batch' AND status IN ('queued','sent') LIMIT 1")&&!DB::val("SELECT id FROM jobs WHERE type='batch' AND status='pending'"))Queue::push('batch',0,[],date('Y-m-d H:i:s',time()+20));}}
   private static function run(){
     // 1 · send everything that is waiting as one batch
-    $q=DB::all("SELECT * FROM ai_batch WHERE status='queued' ORDER BY id LIMIT 500");
+    $q=DB::all("SELECT * FROM ai_batch WHERE mode='batch' AND status='queued' ORDER BY id LIMIT 500");
     // wait a little for the rest of a bulk run, unless the queue has stopped growing
-    if($q&&!DB::val("SELECT id FROM ai_batch WHERE status='queued' AND created_at>NOW()-INTERVAL 10 SECOND")){
+    if($q&&!DB::val("SELECT id FROM ai_batch WHERE mode='batch' AND status='queued' AND created_at>NOW()-INTERVAL 10 SECOND")){
       $req=[];foreach($q as $it)$req[]=['custom_id'=>'r'.$it['id'],'params'=>jd($it['params'])];
       $r=http_json(AI::base().'/v1/messages/batches',['json'=>['requests'=>$req],'headers'=>self::h(),'timeout'=>60]);
       $ids=array_column($q,'id');[$in,$v]=DB::in($ids);
@@ -42,7 +46,7 @@ final class Batch{
         self::step($lids,'Sent to the AI as one batch with '.count($q).' report'.(count($q)>1?'s':'').' (50% cheaper, no waiting on the server)','ok','Batch '.$r['data']['id']);}
       else self::fallback($q,'Batch could not be sent (HTTP '.$r['code'].'): '.($r['data']['error']['message']??$r['error']?:mb_substr($r['body'],0,200)));}
     // 2 · check sent batches
-    foreach(DB::all("SELECT batch_id,MIN(sent_at) sent,COUNT(*) n FROM ai_batch WHERE status='sent' GROUP BY batch_id") as $b){
+    foreach(DB::all("SELECT batch_id,MIN(sent_at) sent,COUNT(*) n FROM ai_batch WHERE mode='batch' AND status='sent' GROUP BY batch_id") as $b){
       $r=http_json(AI::base().'/v1/messages/batches'.'/'.rawurlencode($b['batch_id']),['headers'=>self::h(),'timeout'=>30]);
       if($r['code']!==200)continue;
       $d=$r['data'];$c=$d['request_counts']??[];$done=(int)($c['succeeded']??0)+(int)($c['errored']??0)+(int)($c['expired']??0)+(int)($c['canceled']??0);$age=time()-strtotime($b['sent']);
