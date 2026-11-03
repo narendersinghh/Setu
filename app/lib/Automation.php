@@ -63,8 +63,7 @@ final class Automation{
         if($t==='booking'&&strpos($text,$vars['booking_link'])===false)$text.="\n\n".$vars['booking_link'];
         if($t==='booking'&&($s['ch']??'whatsapp')==='email'){
           if(!$l['email']||!Mailer::ready())return ['msg'=>'Skipped booking email – no email address or email not set up'];
-          Mailer::send($l['email'],tpl($s['subject']??'Book a time with {{agency_name}}',$vars),Mailer::html($text),$text);
-          DB::insert('messages',['lead_id'=>$l['id'],'channel'=>'email','status'=>'sent','subject'=>'Booking link','body'=>$text]);
+          Outreach::email($l['id'],$l['email'],tpl($s['subject']??'Book a time with {{agency_name}}',$vars),$text);
           event($l['id'],'sent','Booking link sent by email','email');return ['msg'=>'Booking link emailed'];}
         $files=!empty($s['attach'])&&DB::val('SELECT id FROM reports WHERE lead_id=?',[$l['id']])?Outreach::files($l):[];
         $id=WhatsApp::send($l['phone'],$text,$files,$vars);
@@ -75,10 +74,9 @@ final class Automation{
       case 'email':
         if(!$l['email'])return ['msg'=>'Skipped email – no email address'];
         if(!Mailer::ready())throw new Exception('Email is not set up (Settings → Messaging → Email)');
-        $sub=tpl($s['subject']??'',$vars);$text=tpl($s['body']??'',$vars);$tk=token(12);
+        $sub=tpl($s['subject']??'',$vars);$text=tpl($s['body']??'',$vars);
         $att=[];if(!empty($s['attach'])&&DB::val('SELECT id FROM reports WHERE lead_id=?',[$l['id']]))foreach(Outreach::files($l) as $f)$att[$f['name']]=$f['path'];
-        Mailer::send($l['email'],$sub,Mailer::html($text,base_url('track.php?t='.$tk)),$text,$att);
-        DB::insert('messages',['lead_id'=>$l['id'],'channel'=>'email','status'=>'sent','subject'=>$sub,'body'=>$text,'token'=>$tk]);
+        Outreach::email($l['id'],$l['email'],$sub,$text,$att);
         if(!in_array($l['email_status'],['sent','opened'],true))DB::update('leads',['email_status'=>'sent'],'id=?',[$l['id']]);
         event($l['id'],'sent','Email sent by automation: '.$sub,'email');return ['msg'=>'Email sent'];
       case 'call':

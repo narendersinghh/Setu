@@ -8,6 +8,8 @@ final class AI{
     'groq'=>['name'=>'Groq','url'=>'https://console.groq.com/keys','models'=>'llama-3.3-70b-versatile','steps'=>['Go to console.groq.com and sign in.','Open API Keys → Create API Key.','Paste it below with a model name.'],'note'=>'Very fast open-source models.'],
     'deepseek'=>['name'=>'DeepSeek','url'=>'https://platform.deepseek.com/api_keys','models'=>'deepseek-chat','steps'=>['Go to platform.deepseek.com and sign in.','Top up balance, then create an API key.','Paste it below.'],'note'=>'Low-cost option.'],
     'custom'=>['name'=>'Custom (OpenAI-compatible)','url'=>'','models'=>'any','steps'=>['Use any provider with an OpenAI-compatible /chat/completions endpoint (Together, Mistral, Azure OpenAI proxy, self-hosted…).','Enter the full base URL, e.g. https://api.together.xyz/v1','Enter the key and model name.'],'note'=>'For advanced users.']];}
+  // API address (can point to a proxy/gateway in AI Connection → advanced)
+  static function base(){return rtrim(setting('anthropic_base','https://api.anthropic.com'),'/');}
   static function model($p=null){$p=$p?:setting('ai_provider','anthropic');return setting('ai_model_'.$p);}
   // Tokens, cost and web searches of the current call (shown in "View process")
   static $st=[];
@@ -69,10 +71,10 @@ final class AI{
     for($turn=0;$turn<4;$turn++){
       if($turn&&time()-$t0>$dl-45)break;
       $req=$body+['messages'=>$msgs];
-      $r=self::retry(fn()=>http_json('https://api.anthropic.com/v1/messages',['json'=>$fb?$req+['fallbacks'=>'default']:$req,'headers'=>$fb?array_merge($h,['anthropic-beta: server-side-fallback-2026-07-01']):$h,'timeout'=>$left(),'tick'=>$o['tick']??null]),$t0+$dl);
+      $r=self::retry(fn()=>http_json(self::base().'/v1/messages',['json'=>$fb?$req+['fallbacks'=>'default']:$req,'headers'=>$fb?array_merge($h,['anthropic-beta: server-side-fallback-2026-07-01']):$h,'timeout'=>$left(),'tick'=>$o['tick']??null]),$t0+$dl);
       if(!empty($r['aborted']))throw new Aborted('Stopped by user');
-      if($r['code']===400&&$fb)$r=http_json('https://api.anthropic.com/v1/messages',['json'=>$req,'headers'=>$h,'timeout'=>$left(),'tick'=>$o['tick']??null]);
-      if($r['code']===400&&isset($body['tools'])){unset($body['tools']);Trace::note('Web search is not available for this model – continuing without it');$r=http_json('https://api.anthropic.com/v1/messages',['json'=>$body+['messages'=>$msgs],'headers'=>$h,'timeout'=>$left(),'tick'=>$o['tick']??null]);}
+      if($r['code']===400&&$fb)$r=http_json(self::base().'/v1/messages',['json'=>$req,'headers'=>$h,'timeout'=>$left(),'tick'=>$o['tick']??null]);
+      if($r['code']===400&&isset($body['tools'])){unset($body['tools']);Trace::note('Web search is not available for this model – continuing without it');$r=http_json(self::base().'/v1/messages',['json'=>$body+['messages'=>$msgs],'headers'=>$h,'timeout'=>$left(),'tick'=>$o['tick']??null]);}
       if(!empty($r['aborted']))throw new Aborted('Stopped by user');
       $u=$r['data']['usage']??[];$tin+=($u['input_tokens']??0)+($u['cache_creation_input_tokens']??0)+($u['cache_read_input_tokens']??0);$tout+=$u['output_tokens']??0;$ws+=$u['server_tool_use']['web_search_requests']??0;
       if($r['code']===0)throw new Exception('Claude did not answer in time ('.($r['error']?:'timeout').'). Try again, or choose a faster model (e.g. claude-sonnet-5-5) in AI Connection.');

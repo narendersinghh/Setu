@@ -9,7 +9,7 @@ if(!is_file(APP.'/pages/'.$r.'.php'))$r='dashboard';
 if($r!=='login')require_login();
 if(is_post())csrf_check();
 // Page access: [permission, module]
-$acl=['scraper'=>['prospecting','prospecting'],'campaign'=>['prospecting','prospecting'],'campaigns'=>['prospecting','prospecting'],'prospects'=>['prospecting','prospecting'],'reports'=>['prospecting','prospecting'],'automations'=>['automations','crm'],'automation'=>['automations','crm'],'templates'=>['templates','crm'],'prompts'=>['templates','crm'],'ai'=>['settings','crm'],'settings'=>['settings','crm'],'updates'=>['settings','crm'],'usage'=>['settings','crm'],'team'=>['team','crm'],'modules'=>['modules','crm'],'recipes'=>['automations','crm'],'user'=>['team','crm']];
+$acl=['emails'=>['leads','crm'],'scraper'=>['prospecting','prospecting'],'campaign'=>['prospecting','prospecting'],'campaigns'=>['prospecting','prospecting'],'prospects'=>['prospecting','prospecting'],'reports'=>['prospecting','prospecting'],'automations'=>['automations','crm'],'automation'=>['automations','crm'],'templates'=>['templates','crm'],'prompts'=>['templates','crm'],'ai'=>['settings','crm'],'settings'=>['settings','crm'],'updates'=>['settings','crm'],'usage'=>['settings','crm'],'team'=>['team','crm'],'modules'=>['modules','crm'],'recipes'=>['automations','crm'],'user'=>['team','crm']];
 if(isset($acl[$r])){[$perm,$m]=$acl[$r];if(!can($perm))denied();if(!mod($m))denied('The '.modules()[$m][0].' module is switched off. A super admin can switch it on under Modules in the left menu.');}
 header('X-Frame-Options: SAMEORIGIN');header('X-Content-Type-Options: nosniff');header('Referrer-Policy: strict-origin-when-cross-origin');
 $title='Setu';$subtitle='';$active=$r;

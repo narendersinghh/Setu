@@ -14,6 +14,7 @@ final class Queue{
   // Stop everything for these leads: pending jobs are cancelled, a running job stops at its next step
   static function abort($ids){
     [$in,$v]=DB::in($ids);if(!$v)return 0;
+    DB::q("UPDATE ai_batch SET status='cancelled' WHERE status IN ('queued','sent') AND lead_id IN ($in)",$v);
     DB::q("UPDATE jobs SET status='cancelled',error='Stopped by user' WHERE status='pending' AND type IN (".self::LEAD_JOBS.") AND ref_id IN ($in)",$v);
     DB::q("UPDATE jobs SET status='cancelled',error='Stopped by user' WHERE status='running' AND type IN (".self::LEAD_JOBS.") AND ref_id IN ($in)",$v);
     $n=0;
@@ -27,7 +28,7 @@ final class Queue{
   static function title($j){$p=jd($j['payload']);$a=(int)$j['attempts']>1?' (attempt '.(int)$j['attempts'].')':'';
     if($j['type']==='audit')return 'Audit started'.$a;
     if($j['type']==='contact')return 'Sending the report'.$a;
-    return ['research'=>'Report · step 1 of 3: market research','write'=>'Report · step 2 of 3: AI writes the report','pdf'=>'Report · step 3 of 3: PDF design'][$p['phase']??'research'].$a;}
+    return ['research'=>'Report · step 1 of 3: market research','write'=>'Report · step 2 of 3: AI writes the report','save'=>'Report · step 2 of 3: saving the AI batch answer','pdf'=>'Report · step 3 of 3: PDF design'][$p['phase']??'research'].$a;}
   const LONG=['audit','report','prices'];
   // $quick=true: only short jobs (searches, contact scans, sends, automations) – used by the browser poll,
   // so slow AI steps always run in the detached background worker where web-server time limits do not apply
@@ -44,6 +45,7 @@ final class Queue{
       $tr=in_array($j['type'],['audit','report','contact'],true);
       if($tr)Trace::begin($j['ref_id'],$j['id'],self::title($j));
       try{self::handle($j);DB::q("UPDATE jobs SET status='done',error=NULL WHERE id=? AND status='running'",[$j['id']]);if($tr)Trace::end();}
+      catch(Defer $e){DB::q("UPDATE jobs SET status='pending',locked_at=NULL,attempts=GREATEST(attempts-1,0),run_after=NOW()+INTERVAL ? SECOND WHERE id=?",[max(5,(int)$e->getCode()),$j['id']]);if($tr)Trace::end('ok',$e->getMessage().' – trying again in '.max(5,(int)$e->getCode()).'s');}
       catch(Aborted $e){DB::q("UPDATE jobs SET status='cancelled',error=? WHERE id=?",[$e->getMessage(),$j['id']]);if($tr){Trace::step('Stopped by user','step');Trace::end('err','The process was aborted.');}}
       catch(Throwable $e){if($tr){Trace::close('err',$e->getMessage());Trace::step(((int)$j['attempts']<2&&!in_array($j['type'],['search','auto'],true)?'Error – will retry in 1 minute':'Failed').': '.mb_strimwidth($e->getMessage(),0,140,'…'),'step');Trace::end('err',$e->getMessage());}self::fail($j,$e);}
       $n++;}
@@ -67,7 +69,7 @@ final class Queue{
     DB::q("UPDATE jobs SET status='failed',error=? WHERE id=?",[$msg,$j['id']]);
     if($j['type']==='search')DB::update('campaigns',['status'=>'error','error'=>$msg],'id=?',[$j['ref_id']]);
     elseif($j['type']==='auto')Automation::failed($j['ref_id'],$msg);
-    elseif($j['type']==='prices')return;
+    elseif($j['type']==='prices'||$j['type']==='batch')return;
     elseif($j['type']!=='enrich'){DB::update('leads',['stage'=>'failed','last_error'=>$msg,'progress_msg'=>'Failed'],'id=?',[$j['ref_id']]);event($j['ref_id'],'error',ucfirst($j['type']).' failed: '.$msg);}}
   private static function handle($j){
     $p=jd($j['payload']);$id=(int)$j['ref_id'];
@@ -79,7 +81,8 @@ final class Queue{
       case 'contact':Outreach::contact($id,$p);break;
       case 'auto':Automation::step($id);break;
       case 'call':Voice::call($id,$p);break;
-      case 'prices':Usage::aiPrices();break;}}
+      case 'prices':Usage::aiPrices();break;
+      case 'batch':Batch::tick();break;}}
   // Map search, one result page per job. Businesses already in your data (any earlier search or Leads) are skipped.
   // Google Places: a free IDs-only request first, so pages with nothing new cost nothing and only new businesses are paid for.
   private static function search($cid,$p){
@@ -157,15 +160,19 @@ final class Queue{
       $brief=Report::research($lid,fn($pct,$m)=>self::progress($lid,$pct,$m));
       self::progress($lid,68,'Queued: AI is about to write the report');
       self::push('report',$lid,['phase'=>'write','brief'=>$brief]+$p);return;}
-    if($ph==='write'){
-      $rid=Report::write($lid,$p,(array)($p['brief']??[]),fn($pct,$m)=>self::progress($lid,$pct,$m));
-      unset($p['brief']);
+    if($ph==='write'&&Batch::on($p)){
+      self::progress($lid,70,'Waiting to go to the AI together with the other reports (batch)');
+      Batch::add($lid,$p,(array)($p['brief']??[]));return;}
+    if($ph==='write'||$ph==='save'){
+      $rid=$ph==='save'?Batch::save($lid,$p,fn($pct,$m)=>self::progress($lid,$pct,$m)):Report::write($lid,$p,(array)($p['brief']??[]),fn($pct,$m)=>self::progress($lid,$pct,$m));
+      if(!$rid)return;
+      unset($p['brief'],$p['item']);
       if(report_mode()!=='link'){self::progress($lid,88,'Queued: designing the PDF');self::push('report',$lid,['phase'=>'pdf','rid'=>$rid]+$p);return;}
       self::ready($lid,$p);return;}
     $r=DB::row('SELECT * FROM reports WHERE id=?',[(int)($p['rid']??0)]);
     if($r){self::progress($lid,92,'Rendering PDF pages: charts, illustrations & layout');@ini_set('memory_limit','512M');Report::pdfFile($r);}
     self::ready($lid,$p);}
-  private static function ready($lid,$p){
+  static function ready($lid,$p){
     DB::update('leads',['progress'=>100,'progress_msg'=>'Report ready'],'id=?',[$lid]);
     stage($lid,'report_ready','Report generated');
     Automation::fire('report_ready',$lid);

@@ -35,7 +35,7 @@ final class Booking{
     $when=date('l, d M Y \a\t h:i A',$start);$loc=DB::val('SELECT location FROM appointments WHERE lead_id=? AND start_at=? ORDER BY id DESC LIMIT 1',[$l['id'],date('Y-m-d H:i:s',$start)])?:setting('appt_location');
     try{
       if(setting('appt_notify')==='1'&&($to=setting('company_email'))){$t="New appointment booked\n\n{$l['name']}".($l['contact_name']?" ({$l['contact_name']})":'')."\nPhone: {$l['phone']}\nEmail: {$l['email']}\nWhen: $when\n\n".base_url('index.php?r=lead&id='.$l['id']);Mailer::send($to,'📅 New booking: '.$l['name'].' – '.date('d M h:i A',$start),Mailer::html($t),$t);}
-      if($l['email']){$t="Hi ".($l['contact_name']?:$l['name']).",\n\nYour ".setting('appt_title','meeting')." with ".setting('company_name')." is confirmed for $when.".($loc?"\nWhere: $loc":'')."\n\nSee you then!\n".setting('sender_name');Mailer::send($l['email'],'Confirmed: '.setting('appt_title','Meeting').' on '.date('d M, h:i A',$start),Mailer::html($t),$t);}}
+      if($l['email']){$t="Hi ".($l['contact_name']?:$l['name']).",\n\nYour ".setting('appt_title','meeting')." with ".setting('company_name')." is confirmed for $when.".($loc?"\nWhere: $loc":'')."\n\nSee you then!\n".setting('sender_name');Outreach::email($l['id'],$l['email'],'Confirmed: '.setting('appt_title','Meeting').' on '.date('d M, h:i A',$start),$t);}}
     catch(Throwable $e){logmsg('Booking mail: '.$e->getMessage());}}
   // Change status (completed / no_show / cancelled); cancelling also removes the Google Calendar event
   static function status($id,$st){

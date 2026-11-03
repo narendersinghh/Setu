@@ -76,34 +76,47 @@ TXT;
     [$lead,,,,,$vars]=self::input($leadId);
     $k=md5(mb_strtolower(trim(($lead['keyword']?:$lead['category']).'|'.$lead['city'])).'|'.setting('ai_provider','anthropic'));
     $days=max(0,(int)setting('research_cache_days','30'));
-    if($days&&($c=DB::val('SELECT brief FROM research_cache WHERE k=? AND created_at>NOW()-INTERVAL '.$days.' DAY',[$k]))&&($b=jd($c))){if($progress)$progress(66,'Using recent market research for this area (no AI cost)');return $b;}
+    if($days&&($c=DB::val("SELECT brief FROM research_cache WHERE k=? AND brief<>'' AND created_at>NOW()-INTERVAL ".$days.' DAY',[$k]))&&($b=jd($c))){if($progress)$progress(66,'Using recent market research for this area (no AI cost)');return $b;}
+    // One research call per business type & city: the first report researches, the others of a bulk run wait and reuse it
+    if($days){
+      $own=DB::q("INSERT IGNORE INTO research_cache (k,brief) VALUES (?,'')",[$k])->rowCount()||DB::q("UPDATE research_cache SET brief='',created_at=NOW() WHERE k=? AND (brief<>'' OR created_at<NOW()-INTERVAL 4 MINUTE)",[$k])->rowCount();
+      if(!$own){if($progress)$progress(61,'Waiting for shared market research (another report of this area is researching it)');throw new Defer('Waiting for shared market research',20);}}
     if($progress)$progress(62,'AI is researching the market, customers & competitors');
     try{
       $rb=AI::complete(self::RESEARCH,tpl("Business: {{business_name}} – {{category}} in {{city}} ({{address}}).\nWebsite: {{website}}\nMain Google search analysed: \"{{keyword}}\" (their Maps position #{{position}}, rating {{rating}} from {{reviews}} reviews).\nCompetitors on Google Maps: {{competitors}}\nCurrency: {{currency}}.",$vars),5000,null,['research'=>true,'searches'=>5,'op'=>'research','deadline'=>200,'label'=>'Market research'.(setting('ai_provider','anthropic')==='anthropic'?' (live web search)':' (model knowledge)')]);
       $b=self::parse($rb,'facts')??[];}
-    catch(Aborted $e){throw $e;}
+    catch(Aborted $e){if($days)DB::q("DELETE FROM research_cache WHERE k=? AND brief=''",[$k]);throw $e;}
     catch(Throwable $e){logmsg('Research step: '.$e->getMessage());Trace::step('Research failed – the report is written without it','step');Trace::close('err',$e->getMessage());$b=[];}
     if(!$b&&empty($e))Trace::note('The research answer had no usable facts – continuing without it');
     if($b&&$days)DB::q('REPLACE INTO research_cache (k,brief) VALUES (?,?)',[$k,je($b)]);
+    elseif($days)DB::q("DELETE FROM research_cache WHERE k=? AND brief=''",[$k]);
     return $b;}
+  // The report-writing request for a lead: [user prompt, prompt row]
+  static function writeRequest($leadId,$opt=[],$brief=[]){
+    [$lead,,$hasWeb,$p,,$vars]=self::input($leadId,$opt);
+    $user=tpl($p['content'],$vars).($brief?"\n\nRESEARCH BRIEF (gathered for this report – base market statistics, trends and benchmarks on it and copy its sources into \"sources\"):\n".je($brief):'');
+    if(!self::research_on())$user.="\n\nIMPORTANT: market research is switched OFF. Do not research or browse the web. Write the report from the audit data above and well-established general knowledge only. Include a statistic only if you are certain of it and its publisher; otherwise leave it out. \"sources\" may be an empty array.";
+    return [$user,$p];}
+  // Turn the AI answer into a saved report; null when the answer is not usable JSON
+  static function finish($leadId,$raw,$brief,$pid,$progress=null){
+    $d=self::parse($raw);if(!$d)return null;
+    if(empty($d['sources'])&&!empty($brief['sources']))$d['sources']=$brief['sources'];
+    if($progress)$progress(84,'Checking that every source link opens');
+    $d=self::verifySources($d);
+    if($progress)$progress(86,'Report written – saving');
+    return DB::insert('reports',['lead_id'=>$leadId,'prompt_id'=>$pid,'token'=>token(16),'html'=>je($d),'pdf'=>'']);}
   // Step 2 – the AI writes the report. Returns the new report id (PDF is rendered by a separate step).
   static function write($leadId,$opt=[],$brief=[],$progress=null){
     $P=fn($p,$m)=>$progress?$progress($p,$m):null;
-    [$lead,,$hasWeb,$p,,$vars]=self::input($leadId,$opt);
+    [$user,$p]=self::writeRequest($leadId,$opt,$brief);
     $research=self::research_on();
     $P(70,'AI is writing the report (usually 1–3 min)');
-    $user=tpl($p['content'],$vars).($brief?"\n\nRESEARCH BRIEF (gathered for this report – base market statistics, trends and benchmarks on it and copy its sources into \"sources\"):\n".je($brief):'');
-    if(!$research)$user.="\n\nIMPORTANT: market research is switched OFF. Do not research or browse the web. Write the report from the audit data above and well-established general knowledge only. Include a statistic only if you are certain of it and its publisher; otherwise leave it out. \"sources\" may be an empty array.";
     $o=['research'=>$research&&!$brief,'searches'=>3,'op'=>'report','deadline'=>300,'label'=>'Writing the report'.($research&&!$brief?' (with web search)':'')];
     $raw=AI::complete(self::SYSTEM,$user,16000,null,$o);
-    $d=self::parse($raw);
-    if(!$d){Trace::step('AI answer could not be read as a report (not valid JSON) – asking again','step');Trace::close('err',mb_substr(trim($raw),0,300));$P(78,'Tidying the AI answer');$raw=AI::complete(self::SYSTEM,$user."\n\nIMPORTANT: your previous answer was not valid JSON. Reply with the JSON object only.",16000,null,['label'=>'Rewriting – first answer was not valid JSON']+$o);$d=self::parse($raw);}
-    if(!$d)throw new Exception('The AI did not return a usable report. Please try again or use a different model.');
-    if(empty($d['sources'])&&!empty($brief['sources']))$d['sources']=$brief['sources'];
-    $P(84,'Checking that every source link opens');
-    $d=self::verifySources($d);
-    $P(86,'Report written – saving');
-    return DB::insert('reports',['lead_id'=>$leadId,'prompt_id'=>$p['id'],'token'=>token(16),'html'=>je($d),'pdf'=>'']);}
+    $rid=self::finish($leadId,$raw,$brief,$p['id'],$progress);
+    if(!$rid){Trace::step('AI answer could not be read as a report (not valid JSON) – asking again','step');Trace::close('err',mb_substr(trim($raw),0,300));$P(78,'Tidying the AI answer');$raw=AI::complete(self::SYSTEM,$user."\n\nIMPORTANT: your previous answer was not valid JSON. Reply with the JSON object only.",16000,null,['label'=>'Rewriting – first answer was not valid JSON']+$o);$rid=self::finish($leadId,$raw,$brief,$p['id'],$progress);}
+    if(!$rid)throw new Exception('The AI did not return a usable report. Please try again or use a different model.');
+    return $rid;}
   // All steps in one go (used outside the background queue)
   static function generate($leadId,$opt=[],$progress=null){
     $rid=self::write($leadId,$opt,self::research($leadId,$progress),$progress);

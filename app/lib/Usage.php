@@ -34,11 +34,11 @@ final class Usage{
     foreach($c as $k=>$x)$o[$k]=($o[$k]??[])+['price'=>$x[3],'free'=>$x[4]];
     $o['_models']=($o['_models']??[])+array_map(fn($p)=>['in'=>$p[0],'out'=>$p[1]],self::modelPrices());
     return $o;}
-  static function log($service,$op='',$calls=1,$in=0,$out=0,$model=null,$err=false){
+  static function log($service,$op='',$calls=1,$in=0,$out=0,$model=null,$err=false,$mult=1.0){
     try{
       $p=self::prices();$cost=0;
       $u=self::catalog()[$service][2]??'calls';if(($p[$service]??null)!==null&&$u!=='tokens')$cost=($u==='minutes'?$in/60:($in?:$calls))*(float)$p[$service]['price'];
-      if($model!==null){$mp=$p['_models'][$model]??$p['_models'][preg_replace('~^.*/~','',$model)]??null;if($mp)$cost=$in/1e6*(float)$mp['in']+$out/1e6*(float)$mp['out'];}
+      if($model!==null){$mp=$p['_models'][$model]??$p['_models'][preg_replace('~^.*/~','',$model)]??null;if($mp)$cost=($in/1e6*(float)$mp['in']+$out/1e6*(float)$mp['out'])*$mult;}
       DB::q('INSERT INTO api_usage (day,service,op,calls,units_in,units_out,cost,errors) VALUES (CURDATE(),?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE calls=calls+VALUES(calls),units_in=units_in+VALUES(units_in),units_out=units_out+VALUES(units_out),cost=cost+VALUES(cost),errors=errors+VALUES(errors)',[$service,mb_substr((string)$op,0,40),$calls,(int)$in,(int)$out,round($cost,6),$err?1:0]);return $cost;}
     catch(Throwable $e){return 0;}}
   // Ask the AI (live web search on Claude) for current list prices & free limits; saves only sane, changed values.

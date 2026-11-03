@@ -3,11 +3,13 @@ final class Outreach{
   // Start audit → report → (optional) contact for the given leads
   static function initiate($ids,$o){
     [$in,$v]=DB::in($ids);$n=0;
+    // Several reports at once → their AI writing goes out as one batch (faster overall, half price, no long server waits)
+    $bulk=count($v)>=max(2,(int)setting('batch_min','4'));
     foreach(DB::all("SELECT id,stage FROM leads WHERE id IN ($in)",$v) as $l){
       if(in_array($l['stage'],['queued','auditing','reporting','contacting'],true))continue;
       DB::q("DELETE FROM jobs WHERE ref_id=? AND type IN ('audit','report','contact') AND status='pending'",[$l['id']]);
       DB::update('leads',['abort_flag'=>0,'progress'=>1,'progress_msg'=>'Waiting in queue','last_error'=>null],'id=?',[$l['id']]);
-      Queue::push('audit',$l['id'],['auto'=>!empty($o['auto']),'pw'=>(int)($o['pw']??0),'pn'=>(int)($o['pn']??0)]);
+      Queue::push('audit',$l['id'],['auto'=>!empty($o['auto']),'pw'=>(int)($o['pw']??0),'pn'=>(int)($o['pn']??0),'bulk'=>$bulk]);
       stage($l['id'],'queued','Process initiated'.(!empty($o['auto'])?' (auto-contact on)':''));$n++;}
     return $n;}
   static function bulk($a,$ids){
@@ -71,10 +73,9 @@ final class Outreach{
       else try{
         [$sub,$body]=self::message('email'.$nw,$l);
         if(report_mode()!=='pdf'&&strpos($body,'{{report_link}}')===false)$body.="\n\nYour report: {{report_link}}";
-        $sub=tpl($sub,$vars);$text=tpl($body,$vars);$tk=token(12);
+        $sub=tpl($sub,$vars);$text=tpl($body,$vars);
         $att=[];foreach($files as $f)$att[$f['name']]=$f['path'];
-        $mid=Mailer::send($l['email'],$sub,Mailer::html($text,base_url('track.php?t='.$tk)),$text,$att);
-        DB::insert('messages',['lead_id'=>$lid,'channel'=>'email','status'=>'sent','ext_id'=>mb_substr((string)$mid,0,190),'subject'=>$sub,'body'=>$text,'token'=>$tk]);
+        self::email($lid,$l['email'],$sub,$text,$att);
         DB::update('leads',['email_status'=>'sent'],'id=?',[$lid]);
         event($lid,'sent','Email sent to '.$l['email'].($att?' with '.count($att).' PDF attachment(s)':' with the report link'),'email');$ok++;}
       catch(Throwable $e){DB::update('leads',['email_status'=>'failed'],'id=?',[$lid]);event($lid,'error','Email failed: '.$e->getMessage(),'email');$err[]='Email: '.$e->getMessage();}}
@@ -93,6 +94,36 @@ final class Outreach{
     elseif($l2['wa_status']==='queued')stage($lid,'report_ready');
     elseif($err)throw new Exception(implode(' | ',$err));
     else stage($lid,'report_ready','No email or WhatsApp number available to contact');}
+  // Send an email to a lead and keep it in the lead's conversation (Emails tab). $reply = message row being answered.
+  static function email($lid,$to,$sub,$text,$att=[],$reply=null){
+    $tk=token(12);$dom=substr(strrchr(Mailer::from()?:'setu@localhost','@'),1)?:'localhost';$mid='<setu.'.$tk.'@'.$dom.'>';$hd=[];
+    if($reply){$ref=trim(($reply['in_reply_to']?:'').' '.($reply['msg_id']?:''));if($reply['msg_id']){$hd['In-Reply-To']=$reply['msg_id'];$hd['References']=trim($ref);}}
+    $sent=Mailer::send($to,$sub,Mailer::html($text,base_url('track.php?t='.$tk)),$text,$att,['msg_id'=>$mid,'headers'=>$hd]);
+    // SMTP/PHP mail use our Message-ID; services return their own when they share it
+    $msgId=Mailer::mode()==='api'?(preg_match('/^<[^>]+@[^>]+>$/',(string)$sent)?$sent:''):$mid;
+    return DB::insert('messages',['lead_id'=>$lid,'channel'=>'email','direction'=>'out','status'=>'sent','ext_id'=>mb_substr((string)$sent,0,190),'msg_id'=>mb_substr($msgId,0,250),'in_reply_to'=>mb_substr((string)($reply['msg_id']??''),0,250),'addr'=>mb_substr(strtolower($to),0,190),'subject'=>mb_substr($sub,0,250),'body'=>$text,'token'=>$tk]);}
+  // Pull new emails from the inbox; replies from leads land in their conversation (Emails tab)
+  static function syncInbox(){
+    if(!Mailer::imapOn())return 0;
+    $n=0;
+    foreach(Mailer::fetchNew() as $m)if(self::store($m))$n++;
+    Settings::set('imap_last',time());
+    return $n;}
+  // Save one received email in the matching lead's conversation; returns the lead id (0 = not from a lead, ignored)
+  static function store($m){
+    $mine=strtolower(Mailer::from());
+    if($m['from']===''||$m['from']===$mine||$m['auto']&&!$m['in_reply_to'])return 0;
+    if($m['msg_id']!==''&&DB::val("SELECT id FROM messages WHERE channel='email' AND direction='in' AND msg_id=?",[$m['msg_id']]))return 0;
+    // Which lead: the conversation it answers, else the sender's address
+    $lid=0;$ids=array_values(array_filter(preg_split('/\s+/',$m['in_reply_to'].' '.$m['references'])));
+    if($ids){$in=implode(',',array_fill(0,count($ids),'?'));$lid=(int)DB::val("SELECT lead_id FROM messages WHERE channel='email' AND msg_id IN ($in) ORDER BY id DESC LIMIT 1",$ids);}
+    if(!$lid)$lid=(int)DB::val('SELECT id FROM leads WHERE LOWER(email)=? ORDER BY is_lead DESC,last_activity DESC LIMIT 1',[$m['from']]);
+    if(!$lid)return 0;
+    DB::insert('messages',['lead_id'=>$lid,'channel'=>'email','direction'=>'in','status'=>'received','msg_id'=>mb_substr($m['msg_id'],0,250),'in_reply_to'=>mb_substr($m['in_reply_to'],0,250),'addr'=>mb_substr($m['from'],0,190),'subject'=>mb_substr($m['subject'],0,250),'body'=>$m['text'],'is_read'=>0,'created_at'=>$m['date']]);
+    $was=DB::val('SELECT replied_at FROM leads WHERE id=?',[$lid]);
+    self::markReplied($lid,'email',$m['text']);
+    if($was)event($lid,'replied','New email: '.mb_strimwidth($m['subject'],0,120,'…'),'email');
+    return $lid;}
   static function markReplied($lid,$via,$msg=''){
     $l=DB::row('SELECT replied_at FROM leads WHERE id=?',[$lid]);
     if(!$l||$l['replied_at'])return;
@@ -109,10 +140,4 @@ final class Outreach{
     DB::update('leads',['is_lead'=>1,'status'=>$status,'lead_at'=>date('Y-m-d H:i:s')],'id=?',[$lid]);
     event($lid,'stage','Moved to Leads ('.(crm_statuses()[$status][0]??$status).')');
     Automation::fire('lead_created',$lid);}
-  static function checkReplies(){
-    $senders=Mailer::inboxSenders(21);
-    if(!$senders)return 0;
-    [$in,$a]=[implode(',',array_fill(0,count($senders),'?')),$senders];
-    $n=0;
-    foreach(DB::all("SELECT id FROM leads WHERE replied_at IS NULL AND email_status IN ('sent','opened') AND LOWER(email) IN ($in)",$a) as $r){self::markReplied($r['id'],'email');$n++;}
-    return $n;}}
+  static function checkReplies(){return self::syncInbox();}}

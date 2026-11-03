@@ -5,7 +5,8 @@ $navCounts=DB::row("SELECT (SELECT COUNT(*) FROM leads l WHERE l.is_lead=1 AND l
 $apptToday=(int)DB::val("SELECT COUNT(*) FROM appointments a LEFT JOIN leads l ON l.id=a.lead_id WHERE a.status='scheduled' AND a.start_at>=CURDATE() AND a.start_at<CURDATE()+INTERVAL 1 DAY".(role()==='sales'?' AND (a.user_id='.(int)$me['id'].' OR l.assigned_to='.(int)$me['id'].' OR l.assigned_to IS NULL)':''));
 $nav=['Overview'=>[['dashboard','Dashboard','grid','indigo']]];
 if($pro)$nav['Prospecting']=[['scraper','Map Scraper','map','orange'],['prospects','Scraped Data','db','sky',(int)$navCounts['sc']],['reports','Audit Reports','file','violet']];
-$nav['CRM']=[['leads','Leads','users','green',(int)$navCounts['nl']],['appointments','Appointments','cal','teal',$apptToday]];
+$mailUn=(int)DB::val("SELECT COUNT(DISTINCT m.lead_id) FROM messages m JOIN leads l ON l.id=m.lead_id WHERE m.channel='email' AND m.direction='in' AND m.is_read=0".($pro?'':' AND l.is_lead=1').scope());
+$nav['CRM']=[['leads','Leads','users','green',(int)$navCounts['nl']],['emails','Emails','mail','blue',$mailUn],['appointments','Appointments','cal','teal',$apptToday]];
 if(can('automations'))$nav['CRM'][]=['automations','Automations','bot','pink'];
 if(can('settings')){$nav['Setup']=[['settings','Settings','sliders','violet'],['team','Team & Roles','shield','blue']];if(is_super())$nav['Setup'][]=['modules','Modules','layers','pink'];$nav['Setup'][]=['updates','Updates','refresh','green'];}
 $alias=['campaign'=>'scraper','campaigns'=>'scraper','lead'=>(isset($l)&&empty($l['is_lead'])?'prospects':'leads'),'lead_new'=>'leads','automation'=>'automations','recipes'=>'automations','modules'=>'modules','prompts'=>'settings','templates'=>'settings','ai'=>'settings','user'=>'team','activity'=>'dashboard'];

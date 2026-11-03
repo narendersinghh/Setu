@@ -27,7 +27,7 @@ while(time()-$t0<$span){
 if($slot>0){flock($fp,LOCK_UN);fclose($fp);exit($cli?"Processed $n job(s)\n":'');}
 try{Automation::scan();Booking::remind();}catch(Throwable $e){logmsg('Scheduler: '.$e->getMessage());}
 $rep=0;
-if(setting('imap_host')&&setting('imap_on','1')==='1'&&time()-(int)setting('imap_last','0')>600){
+if(Mailer::imapOn()&&time()-(int)setting('imap_last','0')>120){
   Settings::set('imap_last',time());
   try{$rep=Outreach::checkReplies();}catch(Throwable $e){logmsg('IMAP: '.$e->getMessage());}}
 try{Updater::check();}catch(Throwable $e){}

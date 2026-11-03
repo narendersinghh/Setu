@@ -19,6 +19,7 @@ if($do==='process'){
   $o=['id'=>(int)$l['id'],'name'=>$l['name'],'stage'=>$l['stage'],'stage_label'=>stages()[$l['stage']][0]??$l['stage'],'busy'=>$busy,'progress'=>(int)$l['progress'],'msg'=>$l['progress_msg'],'error'=>$l['stage']==='failed'?$l['last_error']:'','can_abort'=>can('settings')];
   if(empty($_GET['lite']))$o+=Trace::view($l['id']);
   json_out($o);}
+if($do==='mail_sync'&&is_post()){$n=0;if(Mailer::imapOn()&&time()-(int)setting('imap_last','0')>45){Settings::set('imap_last',time());try{$n=Outreach::syncInbox();}catch(Throwable $e){json_out(['n'=>0,'error'=>$e->getMessage()]);}}json_out(['n'=>$n]);}
 if($do==='prices'){if(!can('settings'))json_out(['error'=>'forbidden'],403);json_out(jd(setting('price_update')));}
 if($do==='activity'){
   if(!can('settings'))json_out(['error'=>'forbidden'],403);
