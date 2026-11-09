@@ -239,6 +239,6 @@ type HTTPError struct {
 func (e *HTTPError) Error() string { return e.Msg }
 
 func Err(code int, msg string) *HTTPError { return &HTTPError{Code: code, Msg: msg} }
-func Bad(msg string) *HTTPError            { return Err(http.StatusBadRequest, msg) }
-func NotFound() *HTTPError                 { return Err(http.StatusNotFound, "Not found") }
-func Forbidden() *HTTPError                { return Err(http.StatusForbidden, "You do not have access to that.") }
+func Bad(msg string) *HTTPError           { return Err(http.StatusBadRequest, msg) }
+func NotFound() *HTTPError                { return Err(http.StatusNotFound, "Not found") }
+func Forbidden() *HTTPError               { return Err(http.StatusForbidden, "You do not have access to that.") }

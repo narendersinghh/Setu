@@ -1,5 +1,9 @@
 import { WebModule } from '../types'
+import CaptureTab from './CaptureTab'
 
-// capture module – routes and settings tabs. See docs/V2_CONVENTIONS.md.
-const mod: WebModule = { routes: [], settings: [] }
+// capture module – lead sources (website form, embed script, Meta & Google Ads, webhooks) in Settings → CRM.
+const mod: WebModule = {
+  routes: [],
+  settings: [{ key: 'capture', group: 'crm', label: 'Lead capture', ic: 'plug', order: 20, component: CaptureTab }],
+}
 export default mod

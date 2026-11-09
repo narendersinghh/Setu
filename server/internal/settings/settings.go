@@ -14,7 +14,10 @@ import (
 var secretKey = regexp.MustCompile(`(_key|_pass|_password|_token|_secret)$|^ai_key_`)
 
 // IsSecret reports keys that are encrypted at rest and never sent to the browser.
-func IsSecret(k string) bool { return secretKey.MatchString(k) }
+func IsSecret(k string) bool { return secretKey.MatchString(k) && !notSecret[k] }
+
+// Names that match the secret pattern but are shown to the user (public link keys, webhook verify words).
+var notSecret = map[string]bool{"booking_key": true, "wa_verify_token": true, "fb_verify_token": true}
 
 type Store struct {
 	org int64
@@ -35,9 +38,8 @@ func Load(ctx context.Context, q db.Q, box *secure.Box, org int64) (*Store, erro
 		if err := rows.Scan(&k, &v); err != nil {
 			return nil, err
 		}
-		if IsSecret(k) {
-			v, _ = box.Decrypt(org, v)
-		}
+		v, _ = box.Decrypt(org, v) // plain values pass through unchanged
+
 		s.m[k] = v
 	}
 	return s, rows.Err()

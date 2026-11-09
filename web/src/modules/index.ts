@@ -9,8 +9,9 @@ import messaging from './messaging'
 import prospecting from './prospecting'
 import reports from './reports'
 import usage from './usage'
+import ai from './ai'
 
-const mods: WebModule[] = [crm, capture, automation, booking, messaging, prospecting, reports, usage]
+const mods: WebModule[] = [crm, capture, automation, booking, messaging, prospecting, reports, usage, ai]
 
 export const allRoutes: RouteObject[] = mods.flatMap(m => m.routes || [])
 export const allSettingsTabs: SettingsTab[] = mods.flatMap(m => m.settings || [])

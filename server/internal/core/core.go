@@ -50,7 +50,10 @@ func Register(a *app.App) {
 
 var emailRe = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 
-func validEmail(e string) bool { _, err := mail.ParseAddress(e); return err == nil && emailRe.MatchString(e) }
+func validEmail(e string) bool {
+	_, err := mail.ParseAddress(e)
+	return err == nil && emailRe.MatchString(e)
+}
 
 func clean(s string, n int) string {
 	s = strings.TrimSpace(s)
@@ -280,7 +283,7 @@ func me(c *app.Ctx) (any, error) {
 		"user": c.User, "org": c.Org, "workspaces": ws, "csrf": c.CSRF, "perms": perms,
 		"modules":  map[string]bool{"crm": true, "prospecting": c.Mod("prospecting")},
 		"roles":    app.Roles,
-		"settings": map[string]string{"company_name": s.Get("company_name", c.Org.Name), "currency": s.Get("currency", "INR"), "currency_symbol": s.Get("currency_symbol", "₹"), "timezone": s.Get("timezone", "Asia/Kolkata"), "logo_dark": s.Get("logo_dark", ""), "logo_light": s.Get("logo_light", "")},
+		"settings": map[string]string{"company_name": s.Get("company_name", c.Org.Name), "currency": s.Get("currency", "INR"), "currency_symbol": s.Get("currency_symbol", "₹"), "timezone": s.Get("timezone", "Asia/Kolkata"), "default_country_code": s.Get("default_country_code", "91"), "logo_dark": s.Get("logo_dark", ""), "logo_light": s.Get("logo_light", "")},
 	}, nil
 }
 

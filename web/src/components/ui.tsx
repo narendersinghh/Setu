@@ -114,11 +114,15 @@ export async function act<T>(fn: () => Promise<T>, ok?: string): Promise<T | und
 
 export function confirmDo(msg: string) { return window.confirm(msg) }
 
+/** Latest page title (the layout may mount its listener after the page announced it). */
+export let lastTitle = { title: 'Setu', subtitle: '' }
+
 /** Page header (title & subtitle shown in the top bar). */
 export function usePageTitle(title: string, subtitle = '') {
   useEffect(() => {
     document.title = title + ' · Setu'
-    window.dispatchEvent(new CustomEvent('setu:title', { detail: { title, subtitle } }))
+    lastTitle = { title, subtitle }
+    window.dispatchEvent(new CustomEvent('setu:title', { detail: lastTitle }))
   }, [title, subtitle])
 }
 

@@ -1,3 +1,8 @@
+> **Setu v2 (multi-tenant SaaS)** lives in `server/` (Go + PostgreSQL) and `web/` (React).
+> One address for every organisation, Row-Level Security isolation, background workers, Docker deploy.
+> Start with `docs/REWRITE_PLAN.md` and `docs/OPERATIONS.md`. Move a v1 install with `tools/export-v2.php` + `setu import-v1`.
+> The PHP files below are v1 and remain until all installs are migrated.
+
 # Setu – Leads, Audits & CRM for agencies
 
 Setu ("bridge") finds businesses on **Google Maps**, audits their **website** and **Google Business Profile**, writes a premium **AI audit report** as a beautifully designed PDF, sends it on **Email and WhatsApp** (PDF attached), and then runs your sales follow-up as a **CRM** with lead capture, **automations**, **AI voice calls** and **appointment booking**.
