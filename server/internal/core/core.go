@@ -33,6 +33,14 @@ func Register(a *app.App) {
 	a.Get("/modules", modulesGet, app.Perm("modules"))
 	a.Put("/modules", modulesPut, app.Perm("modules"))
 	registerSettings(a)
+	a.Get("/domain-check", domainCheck, app.NoAuth())
+	a.Put("/workspace/domain", setDomain, app.Perm("modules"))
+	a.Public(http.MethodGet, "/healthz", func(c *app.Ctx) (any, error) {
+		if err := c.A.DB.Pool.Ping(c); err != nil {
+			return nil, app.Err(http.StatusServiceUnavailable, "database unavailable")
+		}
+		return map[string]any{"ok": true}, nil
+	})
 	a.Get("/platform/orgs", platformOrgs)
 	a.Put("/platform/orgs/{id}", platformOrgUpdate)
 	a.Seed(func(ctx context.Context, tx pgx.Tx, orgID int64, s *settings.Store) error {
@@ -163,6 +171,9 @@ func checkCreds(c *app.Ctx, in creds) (*userRow, error) {
 		return nil, app.Err(http.StatusUnauthorized, "Invalid email or password.")
 	}
 	c.A.DB.Pool.Exec(c, `DELETE FROM throttle WHERE k=$1`, key+":chk")
+	if secure.NeedsRehash(u.Hash) {
+		c.A.DB.Pool.Exec(c, `UPDATE users SET password_hash=$2 WHERE id=$1`, u.ID, secure.HashPassword(in.Password))
+	}
 	if !u.Active {
 		return nil, app.Err(http.StatusForbidden, "Your account has been deactivated.")
 	}
@@ -503,4 +514,43 @@ func platformOrgUpdate(c *app.Ctx) (any, error) {
 		c.A.DB.Pool.Exec(c, `DELETE FROM sessions WHERE org_id=$1`, o.ID)
 	}
 	return nil, nil
+}
+
+// ---------------------------------------------------------------- custom domains (optional)
+
+// domainCheck is asked by Caddy before issuing a certificate on demand.
+func domainCheck(c *app.Ctx) (any, error) {
+	d := strings.ToLower(strings.TrimSpace(c.Query("domain")))
+	n, _ := db.Val[int](c, c.A.DB.Pool, `SELECT count(*) FROM orgs WHERE custom_domain=$1 AND status='active'`, d)
+	if n == 0 {
+		return nil, app.NotFound()
+	}
+	return nil, nil
+}
+
+var domainRe = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
+
+// setDomain lets a super admin open Setu on the workspace's own domain (CNAME to the app host).
+func setDomain(c *app.Ctx) (any, error) {
+	var in struct {
+		Domain string `json:"domain"`
+	}
+	if err := c.Bind(&in); err != nil {
+		return nil, err
+	}
+	d := strings.ToLower(strings.TrimSpace(in.Domain))
+	var v any
+	if d != "" {
+		if !domainRe.MatchString(d) || d == c.A.Cfg.AppHost {
+			return nil, app.Bad("Enter a domain like crm.yourcompany.com")
+		}
+		v = d
+	}
+	if _, err := c.A.DB.Pool.Exec(c, `UPDATE orgs SET custom_domain=$2 WHERE id=$1`, c.Org.ID, v); err != nil {
+		if db.IsUnique(err) {
+			return nil, app.Bad("This domain is already used by another workspace.")
+		}
+		return nil, err
+	}
+	return map[string]any{"ok": true, "cname": c.A.Cfg.AppHost}, nil
 }

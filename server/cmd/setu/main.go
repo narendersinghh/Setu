@@ -41,7 +41,7 @@ func run(cmd string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if cmd == "migrate" || cmd == "all" || cmd == "serve" {
+	if cmd == "migrate" || cmd == "all" || cmd == "serve" || cmd == "import-v1" {
 		if err := db.Migrate(ctx, cfg.MigrateURL, cfg.DatabaseURL); err != nil {
 			return fmt.Errorf("migrate: %w", err)
 		}
@@ -63,6 +63,33 @@ func run(cmd string) error {
 	a.Mux.Handle("/*", webui.Handler())
 
 	switch cmd {
+	case "import-v1": // setu import-v1 <export.jsonl> ["Organisation name"]
+		if len(os.Args) < 3 {
+			return fmt.Errorf("usage: setu import-v1 <export.jsonl> [organisation name]")
+		}
+		f, err := os.Open(os.Args[2])
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		name := ""
+		if len(os.Args) > 3 {
+			name = os.Args[3]
+		}
+		id, err := core.ImportV1(ctx, a, f, name)
+		if err == nil {
+			fmt.Printf("Imported as organisation %d. Users sign in at %s with their v1 email and password.\n", id, cfg.AppURL())
+		}
+		return err
+	case "platform-admin": // setu platform-admin <email> – grant access to the Organisations console
+		if len(os.Args) < 3 {
+			return fmt.Errorf("usage: setu platform-admin <email>")
+		}
+		n, err := db.Exec(ctx, d.Pool, `UPDATE users SET platform_admin=true WHERE email=$1`, os.Args[2])
+		if err == nil && n == 0 {
+			err = fmt.Errorf("no user with that email")
+		}
+		return err
 	case "worker":
 		a.Jobs.Run(ctx, cfg.Workers)
 		return nil
@@ -83,5 +110,5 @@ func run(cmd string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("unknown command %q (serve | worker | all | migrate)", cmd)
+	return fmt.Errorf("unknown command %q (serve | worker | all | migrate | import-v1 | platform-admin)", cmd)
 }

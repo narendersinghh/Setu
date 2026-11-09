@@ -1,0 +1,68 @@
+# Setu v2 on one VPS: Caddy (HTTPS) → setu (web + workers) → PostgreSQL; Gotenberg renders PDFs.
+# Usage: cp .env.example .env && edit it, then: docker compose up -d
+services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SETU_APP_HOST: ${SETU_APP_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+
+  app:
+    image: ${SETU_IMAGE:-setu:latest}
+    build: { context: .., dockerfile: Dockerfile }
+    restart: unless-stopped
+    command: ["serve"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://setu_app:${APP_DB_PASSWORD}@db:5432/setu?sslmode=disable
+      MIGRATE_DATABASE_URL: postgres://setu_owner:${OWNER_DB_PASSWORD}@db:5432/setu?sslmode=disable
+      GOTENBERG_URL: http://gotenberg:3000
+      SETU_SCHEME: https
+    volumes: [setu_data:/data]
+    depends_on:
+      db: { condition: service_healthy }
+    deploy: { resources: { limits: { memory: 512m } } }
+
+  worker:
+    image: ${SETU_IMAGE:-setu:latest}
+    restart: unless-stopped
+    command: ["worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://setu_app:${APP_DB_PASSWORD}@db:5432/setu?sslmode=disable
+      GOTENBERG_URL: http://gotenberg:3000
+    volumes: [setu_data:/data]
+    depends_on: [app]
+    deploy: { resources: { limits: { memory: 768m } } }
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: setu
+      POSTGRES_USER: setu_owner
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ./backups:/backups
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U setu_owner -d setu"], interval: 5s, retries: 20 }
+    shm_size: 256m
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    command: ["gotenberg", "--chromium-auto-start", "--api-timeout=120s", "--chromium-deny-list=^(?!file:///tmp/).*"]
+    deploy: { resources: { limits: { memory: 1g } } }
+
+volumes: { caddy_data: {}, caddy_config: {}, setu_data: {}, pg_data: {} }

@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -48,7 +49,13 @@ func HashPassword(pw string) string {
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(h))
 }
 
+// NeedsRehash reports a legacy (v1 bcrypt) hash that should be upgraded after a successful login.
+func NeedsRehash(hash string) bool { return strings.HasPrefix(hash, "$2") }
+
 func CheckPassword(hash, pw string) bool {
+	if NeedsRehash(hash) {
+		return bcrypt.CompareHashAndPassword([]byte(strings.Replace(hash, "$2y$", "$2a$", 1)), []byte(pw)) == nil
+	}
 	p := strings.Split(hash, "$")
 	if len(p) != 6 || p[1] != "argon2id" {
 		return false
