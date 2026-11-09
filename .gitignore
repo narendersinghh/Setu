@@ -9,3 +9,4 @@ server/internal/webui/dist/assets/
 /tmp/
 server/internal/webui/dist/*
 !server/internal/webui/dist/.keep
+server/setu
