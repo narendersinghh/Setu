@@ -14,11 +14,11 @@ import (
 
 // memStore is an in-memory parStore (same rules as the ai_batch queries).
 type memStore struct {
-	mu      sync.Mutex
-	items   []*memItem
-	maxRun  int
-	beats   int
-	stopped []int64
+	mu     sync.Mutex
+	items  []*memItem
+	maxRun int
+	beats  int
+	stops  []int64
 }
 
 type memItem struct {
@@ -99,7 +99,7 @@ func (m *memStore) cancelled(_ context.Context, ids []int64) map[int64]bool {
 func (m *memStore) stopped(_ context.Context, it *parItem, _ int64, _ int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.stopped = append(m.stopped, it.ID)
+	m.stops = append(m.stops, it.ID)
 }
 
 func (m *memStore) done(_ context.Context, it *parItem, _ int64, _ string, r *result, _ int) {
@@ -161,7 +161,8 @@ func TestParallelRunner(t *testing.T) {
 				break
 			}
 		}
-		prompt := c.body["messages"].([]any)[0].(map[string]any)["content"].(string)
+		msgs := c.body["messages"].([]any)
+		prompt := msgs[len(msgs)-1].(map[string]any)["content"].(string)
 		switch {
 		case prompt == "bad":
 			w.WriteHeader(400)
@@ -232,8 +233,8 @@ func TestParallelRunner(t *testing.T) {
 	if lim := st.get(7); lim.status != "done" || lim.Attempts != 2 || !strings.Contains(lim.why, "429") {
 		t.Fatalf("rate-limited request: %+v", lim)
 	}
-	if slow := st.get(9); slow.status != "cancelled" || len(st.stopped) != 1 || st.stopped[0] != 9 || slow.words == 0 {
-		t.Fatalf("cancelled request: %+v stopped %v", slow, st.stopped)
+	if slow := st.get(9); slow.status != "cancelled" || len(st.stops) != 1 || st.stops[0] != 9 || slow.words == 0 {
+		t.Fatalf("cancelled request: %+v stopped %v", slow, st.stops)
 	}
 	if st.beats == 0 {
 		t.Fatal("no heartbeat")
@@ -251,7 +252,11 @@ func TestParallelRunnerGivesUp(t *testing.T) {
 	defer srv.Close()
 	st := &memStore{}
 	st.add(1, func(int) string { return "x" })
-	runParallel(context.Background(), st, conn{Provider: "anthropic", Key: "k", Model: "claude-haiku-5-5", Base: srv.URL}, testCfg, call)
+	// (the runner ends while the request waits for its retry slot; the job runs it again later)
+	for i := 0; i < 10 && st.count("queued") > 0; i++ {
+		time.Sleep(30 * time.Millisecond)
+		runParallel(context.Background(), st, conn{Provider: "anthropic", Key: "k", Model: "claude-haiku-5-5", Base: srv.URL}, testCfg, call)
+	}
 	it := st.get(1)
 	if it.status != "error" || it.Attempts != 3 || calls.Load() != 3 || !strings.Contains(it.why, "Overloaded") {
 		t.Fatalf("%+v calls %d", it, calls.Load())

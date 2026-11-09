@@ -116,7 +116,7 @@ func isDigitOrSlash(b byte) bool { return b == '/' || b >= '0' && b <= '9' }
 
 func extract(h string, res *Contacts) {
 	for _, m := range telRe.FindAllStringSubmatch(h, -1) {
-		p, err := url.QueryUnescape(m[1])
+		p, err := url.PathUnescape(m[1])
 		if err != nil {
 			p = m[1]
 		}
@@ -146,7 +146,7 @@ func extract(h string, res *Contacts) {
 		res.Phones = res.Phones[:5]
 	}
 	for _, m := range mailtoRe.FindAllStringSubmatch(h, -1) {
-		x, err := url.QueryUnescape(m[1])
+		x, err := url.PathUnescape(m[1])
 		if err != nil {
 			x = m[1]
 		}

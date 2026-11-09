@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func init() { retryMin = 5 * time.Millisecond }
+func init() { retryMin, retryBase = time.Millisecond, 5*time.Millisecond }
 
 // sseWrite writes Server-Sent Events (Anthropic style: event + data).
 func sseWrite(w http.ResponseWriter, events ...any) {

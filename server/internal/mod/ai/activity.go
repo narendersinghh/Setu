@@ -342,35 +342,6 @@ func cancelRun(c *app.Ctx) (any, error) {
 	return nil, err
 }
 
-// ---------------------------------------------------------------- all activity (v1 activity.php)
-
-var eventTypes = []string{"found", "stage", "sent", "replied", "booked", "call", "note", "error"}
-
-func events(c *app.Ctx) (any, error) {
-	w := "1=1"
-	args := []any{}
-	if !(c.Mod("prospecting") && c.Can("prospecting")) {
-		w += " AND l.is_lead"
-	}
-	w += c.Scope("l")
-	if ty := c.Query("type"); ty != "" {
-		args = append(args, ty)
-		w += fmt.Sprintf(" AND e.type=$%d", len(args))
-	}
-	per := 50
-	pg := max(1, c.QueryInt("p", 1))
-	total, err := db.Val[int](c, c.Tx(), `SELECT count(*)::int FROM events e JOIN leads l ON l.id=e.lead_id WHERE `+w, args...)
-	if err != nil {
-		return nil, err
-	}
-	ev, err := db.Maps(c, c.Tx(), `SELECT e.id,e.lead_id,e.type,e.channel,e.message,e.created_at,l.name,l.contact_name FROM events e JOIN leads l ON l.id=e.lead_id WHERE `+w+
-		fmt.Sprintf(` ORDER BY e.id DESC LIMIT %d OFFSET %d`, per, (pg-1)*per), args...)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"events": ev, "total": total, "page": pg, "pages": max(1, (total+per-1)/per)}, nil
-}
-
 // ---------------------------------------------------------------- AI connection page (v1 ai.php)
 
 func connView(s *settings.Store) map[string]any {

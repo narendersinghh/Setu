@@ -109,7 +109,7 @@ func (m *mapsClient) body(q, next string) map[string]any {
 	return b
 }
 
-const placesSearchURL = "https://places.googleapis.com/v1/places:searchText"
+var placesSearchURL = "https://places.googleapis.com/v1/places:searchText"
 
 var placesBase = "https://places.googleapis.com/v1/places/"
 

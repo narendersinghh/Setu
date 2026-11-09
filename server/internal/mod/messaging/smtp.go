@@ -98,6 +98,10 @@ func (a *loginAuth) Next(from []byte, more bool) ([]byte, error) {
 // sendSMTP delivers through the user's mailbox (SSL on 465, STARTTLS on 587, or none).
 func sendSMTP(ctx context.Context, s *settings.Store, m *outMail) error {
 	host, port, sec := smtpConfig(s)
+	return smtpSend(ctx, host, port, sec, smtpUser(s), s.Get("smtp_pass", ""), m)
+}
+
+func smtpSend(ctx context.Context, host, port, sec, user, pass string, m *outMail) error {
 	if host == "" {
 		return errors.New("Enter the SMTP server in Settings → Messaging → Email.")
 	}
@@ -140,7 +144,7 @@ func sendSMTP(ctx context.Context, s *settings.Store, m *outMail) error {
 		}
 	}
 	if ok, _ := c.Extension("AUTH"); ok {
-		if err := c.Auth(&loginAuth{user: smtpUser(s), pass: s.Get("smtp_pass", "")}); err != nil {
+		if err := c.Auth(&loginAuth{user: user, pass: pass}); err != nil {
 			return fmt.Errorf("Mailbox login failed – check the email and (app) password: %v", err)
 		}
 	}

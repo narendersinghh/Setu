@@ -105,7 +105,7 @@ func Complete(ctx context.Context, a *app.App, orgID int64, s *settings.Store, r
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tk := time.NewTicker(4 * time.Second)
+			tk := time.NewTicker(beatEvery)
 			defer tk.Stop()
 			for {
 				select {
@@ -189,6 +189,9 @@ func Complete(ctx context.Context, a *app.App, orgID int64, s *settings.Store, r
 		Provider: c.Provider, WebSearches: res.WebSearches, Duration: took}, nil
 }
 
+// beatEvery: how often a running call shows progress and checks Abort (tests lower it).
+var beatEvery = 4 * time.Second
+
 // beat updates the lead's progress message and keeps the job alive; true when the user pressed Abort.
 func beat(ctx context.Context, a *app.App, orgID, leadID, jobID int64, msg string) bool {
 	var abort bool
@@ -252,7 +255,6 @@ func Register(a *app.App) {
 	a.Get("/leads/{id}/process", leadProcess, app.Perm("leads"))
 	a.Get("/activity", activity, app.Perm("settings"))
 	a.Get("/activity/tick", tick, app.Perm("settings"))
-	a.Get("/activity/events", events, app.Perm("dashboard"))
 	a.Post("/activity/stop-all", stopAll, app.Perm("settings"))
 	a.Post("/activity/abort", abortLeads, app.Perm("settings"))
 	a.Post("/activity/unschedule", unschedule, app.Perm("settings"))

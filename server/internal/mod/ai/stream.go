@@ -62,8 +62,11 @@ var (
 	guardedClient = newClient(true)
 )
 
+// allowPrivate switches the SSRF guard off (tests only: httptest servers listen on 127.0.0.1).
+var allowPrivate = false
+
 func clientFor(c conn) *http.Client {
-	if c.Guard {
+	if c.Guard && !allowPrivate {
 		return guardedClient
 	}
 	return apiClient
@@ -158,8 +161,12 @@ type result struct {
 	Sources     []Source
 }
 
-// retryMin is the shortest wait before retrying a busy provider (tests lower it).
-var retryMin = 3 * time.Second
+// Wait before retrying a busy provider: Retry-After, else retryBase × attempt, kept within retryMin–15s
+// (tests lower both).
+var (
+	retryMin  = 3 * time.Second
+	retryBase = 6 * time.Second
+)
 
 // call sends one request with streaming, retrying a busy provider while there is time left.
 func call(ctx context.Context, c conn, o callOpts) (*result, error) {
@@ -188,10 +195,11 @@ func call(ctx context.Context, c conn, o callOpts) (*result, error) {
 		}
 		var ae *apiError
 		errors.As(err, &ae)
-		wait := min(15*time.Second, max(retryMin, ae.RetryAfter))
-		if ae.RetryAfter == 0 {
-			wait = max(retryMin, min(15*time.Second, 6*time.Second*time.Duration(attempt+1)))
+		wait := ae.RetryAfter
+		if wait == 0 {
+			wait = retryBase * time.Duration(attempt+1)
 		}
+		wait = min(15*time.Second, max(retryMin, wait))
 		if o.OnNote != nil {
 			code := "no answer"
 			if ae.Code > 0 {

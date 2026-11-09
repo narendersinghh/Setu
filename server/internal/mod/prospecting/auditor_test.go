@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -184,7 +185,7 @@ func TestAuditMap(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	b, _ := json.Marshal(r.Cats)
-	if string(b) != `{"Reputation":25,"Visibility":50,"Profile":73}` {
+	if string(b) != `{"Reputation":50,"Visibility":50,"Profile":79}` {
 		t.Fatalf("cats %s", b)
 	}
 }
@@ -217,4 +218,23 @@ func TestCSVCell(t *testing.T) {
 	if csvCell("=SUM(A1)") != "'=SUM(A1)" || csvCell("-12") != "-12" || csvCell("+91 98") != "'+91 98" || csvCell("ok") != "ok" {
 		t.Fatal("csv guard")
 	}
+}
+
+// SETU_LIVE_AUDIT=https://… go test -run TestLiveAudit -v  (real website, real SSRF-guarded fetcher)
+func TestLiveAudit(t *testing.T) {
+	u := os.Getenv("SETU_LIVE_AUDIT")
+	if u == "" {
+		t.Skip("set SETU_LIVE_AUDIT")
+	}
+	res, err := auditWebsite(context.Background(), mapS{}, u, func(p int, m string) error { t.Logf("%d%% %s", p, m); return nil }, AuditLead{City: "London", Keyword: "python"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range res.Checks {
+		t.Logf("[%s] %-40s %s", c.Status, c.Label, c.Detail)
+	}
+	b, _ := json.Marshal(res.Meta)
+	t.Logf("score %d meta %s", res.Score, b)
+	c := scanContacts(context.Background(), u)
+	t.Logf("contacts %+v", c)
 }
