@@ -325,7 +325,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-hover) }
 .wsl button > .ic { margin-left: auto; color: var(--mut) }
 .wsl button small { display: block; color: var(--mut); font-weight: 500; font-size: 12px }
 
-.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); gap: 10px; margin: 2px 0 18px }
+.auth-f .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); gap: 10px; margin: 2px 0 18px }
 .plan { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; color: var(--txt); font: inherit; transition: border-color .15s, box-shadow .15s }
 .plan:hover { border-color: color-mix(in srgb, var(--pri) 40%, var(--line)) }
 .plan.on { border-color: var(--pri-t); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 12%, transparent) }
@@ -390,6 +390,6 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-hover) }
   .tb .ib.bd, .tb .act-b, .tb .btn, .tb-me { width: 38px; height: 38px }
   .tb .usage-b { display: none }
   .auth-f h1 { font-size: 26px }
-  .plans { grid-template-columns: 1fr }
+  .auth-f .plans { grid-template-columns: 1fr }
   .donut { justify-content: center }
 }
