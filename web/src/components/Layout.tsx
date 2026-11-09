@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, FormEvent, lazy, Suspense } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { useMe, useCan, useMod, planName, Limit } from '@/lib/session'
+import { useMe, useCan, useMod, planName, Limit, daysLeft } from '@/lib/session'
 import { BrandMark, ThemeToggle, useBrand } from '@/lib/theme'
 import { Avatar, Icon, lastTitle } from './ui'
 
@@ -29,7 +29,7 @@ export function useNav() {
   ]
   if (can('automations')) crm.push({ to: '/automations', label: 'Automations', ic: 'bot', c: 'pink' })
   g.push(['CRM', crm])
-  if (can('settings')) g.push(['Setup', [{ to: '/settings', label: 'Settings', ic: 'sliders', c: 'violet', match: ['/usage'] }, { to: '/team', label: 'Team & Roles', ic: 'shield', c: 'blue' }]])
+  if (can('settings')) g.push(['Setup', [{ to: '/settings', label: 'Settings', ic: 'sliders', c: 'violet', match: ['/usage', '/billing'] }, { to: '/team', label: 'Team & Roles', ic: 'shield', c: 'blue' }]])
   return g
 }
 
@@ -58,13 +58,36 @@ function PlanCard() {
   const ord = (k: string) => { const i = LIMIT_ORDER.indexOf(k); return i < 0 ? 99 : i }
   lim.sort((a, b) => ord(a[0]) - ord(b[0]))
   if (!plan && !lim.length) return null
-  return <div className="sb-plan" title={plan ? plan + ' plan' : 'Your plan'}>
-    <div className="pl-h"><span className="pl-i"><Icon n="crown" /></span><span className="pl-x"><b>{plan ? plan + ' plan' : 'Your plan'}</b><small>{lim.length ? 'Usage this period' : 'Thanks for using us'}</small></span></div>
+  const st = me.org.plan_status, tl = daysLeft(me.org.trial_ends_at)
+  const sub = st === 'trial' && tl !== null && tl >= 0 ? (tl === 0 ? 'Trial ends today' : 'Trial · ' + tl + ' day' + (tl === 1 ? '' : 's') + ' left') : st === 'expired' ? 'Plan expired – renew' : lim.length ? 'Usage this period' : 'Thanks for using us'
+  return <div className={'sb-plan' + (st === 'expired' ? ' exp' : '')} title={plan ? plan + ' plan' : 'Your plan'}>
+    <div className="pl-h"><span className="pl-i"><Icon n="crown" /></span><span className="pl-x"><b>{plan ? plan + ' plan' : 'Your plan'}</b><small>{sub}</small></span></div>
     {lim.length > 0 && <div className="pl-u">{lim.slice(0, 2).map(([k, v]) => {
       const pc = Math.min(100, Math.round((v.used / v.limit) * 100))
       return <div key={k} className="pl-r"><span>{LIMIT_LABEL[k] || k}<b>{v.used.toLocaleString('en-IN')} / {v.limit.toLocaleString('en-IN')}</b></span><div className="pl-t"><i className={pc >= 90 ? 'hot' : ''} style={{ width: pc + '%' }} /></div></div>
     })}</div>}
-    {can('settings') && <Link className="btn btn-p btn-sm" to="/usage"><Icon n="rocket" /><span>Plan &amp; usage</span></Link>}
+    {can('settings') && <Link className="btn btn-p btn-sm" to="/billing"><Icon n="rocket" /><span>{st === 'expired' || st === 'trial' || st === 'free' ? 'Upgrade plan' : 'Plan & usage'}</span></Link>}
+  </div>
+}
+
+/** Trial ending soon (≤ 7 days) or plan expired: a banner above every page. */
+function PlanBanner() {
+  const me = useMe(), can = useCan()
+  const st = me.org.plan_status
+  const tl = daysLeft(me.org.trial_ends_at)
+  const [hide, setHide] = useState(() => { try { return sessionStorage.getItem('setu-pbn') === String(st) + tl } catch { return false } })
+  if (st === 'trial' && (tl === null || tl > 7 || tl < 0)) return null
+  if (st !== 'trial' && st !== 'expired') return null
+  if (hide && st === 'trial') return null
+  const close = () => { setHide(true); try { sessionStorage.setItem('setu-pbn', String(st) + tl) } catch { /* ignore */ } }
+  const plan = planName(me.org)
+  return <div className={'pbn ' + st} role="status">
+    <Icon n={st === 'expired' ? 'alert' : 'clock'} />
+    {st === 'expired'
+      ? <span><b>Your {plan || 'paid'} plan has expired.</b> You are on the free limits until you renew{can('settings') ? '' : ' – ask an owner to renew'}.</span>
+      : <span><b>{tl === 0 ? 'Your free trial ends today.' : 'Your free trial ends in ' + tl + ' day' + (tl === 1 ? '' : 's') + '.'}</b> Choose a plan to keep every feature without interruption.</span>}
+    {can('settings') && <Link className="btn btn-p btn-sm" to="/billing"><Icon n="rocket" /><span>{st === 'expired' ? 'Renew now' : 'Upgrade'}</span></Link>}
+    {st === 'trial' && <button type="button" className="ib" onClick={close} aria-label="Dismiss" title="Dismiss"><Icon n="x" /></button>}
   </div>
 }
 
@@ -149,6 +172,7 @@ export default function Layout() {
               <div className="ddm-u"><Avatar name={me.user.name} size={38} /><span className="grow"><b>{me.user.name}</b><small>{me.user.email}</small></span></div>
               <Link to="/account"><Icon n="user" />My account</Link>
               {can('team') && <Link to="/team"><Icon n="shield" />Team &amp; roles</Link>}
+              {can('settings') && <Link to="/billing"><Icon n="crown" />Plan &amp; billing</Link>}
               {me.workspaces.length > 1 && <><div className="dh">Switch workspace</div>{wsList}</>}
               {me.user.platform_admin && <button type="button" onClick={toConsole}><Icon n="globe" />Platform console</button>}
               <hr /><button type="button" className="red" onClick={logout}><Icon n="logout" />Log out</button>
@@ -156,6 +180,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
+      <PlanBanner />
       <div className="ct"><Outlet /></div>
     </main>
     {can('settings') && drawer && <Suspense fallback={null}><ActivityDrawer onClose={() => setDrawer(false)} /></Suspense>}

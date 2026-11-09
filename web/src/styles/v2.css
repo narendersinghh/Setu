@@ -401,3 +401,206 @@ a.kpi:hover { transform: translateY(-3px); box-shadow: 0 18px 40px color-mix(in 
   .auth-f .plans { grid-template-columns: 1fr }
   .donut { justify-content: center }
 }
+
+/* ================================================================== charts: sparkline, bar chart, donut, area */
+.spk { display: block; overflow: visible }
+.spk-l { stroke: var(--c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.1s var(--ease) .15s forwards }
+.spk-s0 { stop-color: var(--c); stop-opacity: .32 }
+.spk-s1 { stop-color: var(--c); stop-opacity: 0 }
+.spk-d { fill: var(--c); stroke: var(--dk-bg); stroke-width: 2 }
+@keyframes draw { to { stroke-dashoffset: 0 } }
+.area-l { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.2s var(--ease) forwards }
+
+.bch { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; --h: 200px }
+.bch-y { display: flex; flex-direction: column; justify-content: space-between; height: var(--h); font: 500 10.5px var(--ff); color: var(--mut2); text-align: right; margin-top: -6px; padding-bottom: 0 }
+.bch-y span { line-height: 12px }
+.bch-p { position: relative; min-width: 0 }
+.bch-g { position: absolute; left: 0; right: 0; top: 0; height: var(--h); display: flex; flex-direction: column; justify-content: space-between; pointer-events: none }
+.bch-g i { display: block; border-top: 1px dashed var(--line) }
+.bch-g i:last-child { border-top-style: solid }
+.bch-b { position: relative; height: var(--h); display: flex; align-items: flex-end; gap: clamp(2px, .6vw, 6px) }
+.bch-c { flex: 1; height: 100%; display: flex; align-items: flex-end; padding: 0; border: 0; background: none; cursor: pointer; min-width: 0; border-radius: 6px }
+.bch-c i { display: block; width: 100%; min-height: 2px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, var(--c), color-mix(in srgb, var(--c) 65%, transparent)); transform-origin: bottom; animation: grow .7s var(--ease) both; transition: filter .15s, opacity .15s }
+.bch-b:hover .bch-c i { opacity: .55 }
+.bch-b .bch-c.on i { opacity: 1; filter: brightness(1.1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent) }
+.bch-c:focus-visible { outline-offset: 1px }
+@keyframes grow { from { transform: scaleY(0) } }
+.bch-x { display: flex; gap: clamp(2px, .6vw, 6px); margin-top: 8px }
+.bch-x span { flex: 1; min-width: 0; text-align: center; font: 500 10.5px var(--ff); color: var(--mut2); white-space: nowrap; overflow: visible }
+.bch-t { position: absolute; transform: translate(-50%, -10px); background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 10px; pointer-events: none; white-space: nowrap; box-shadow: var(--sh2); z-index: 2; margin-bottom: 0 }
+.bch-t b { display: block; font: 800 14px var(--fh); color: var(--bg) }
+.bch-t small { font-size: 11px; opacity: .78 }
+
+.donut-s { transition: stroke-width .2s var(--ease), opacity .2s; animation: dn .9s var(--ease) both; cursor: pointer }
+@keyframes dn { from { stroke-dasharray: 0 var(--C) } }
+.donut.hov .donut-s:not(.on) { opacity: .35 }
+.donut-s.on, .donut-s:hover { stroke-width: 26px }
+.legend > div, .legend > a { transition: background .15s }
+.legend > .on { background: var(--hover) }
+.donut-m.c-indigo b, .donut-m[class*="c-"] b { color: var(--c) }
+
+/* ================================================================== chips input (dropdown options) */
+.chin { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; font-weight: 400 }
+.chin-l { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px }
+.chin-c { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 4px 0 12px; border-radius: 999px; background: var(--pri-s); color: var(--pri-t); font-size: 12.5px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--pri) 18%, transparent); animation: pop .18s var(--ease) }
+.chin-c span { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.chin-c button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background .15s }
+.chin-c button:hover { background: color-mix(in srgb, var(--pri) 16%, transparent) }
+.chin-c button .ic { width: 13px; height: 13px; stroke-width: 2.6 }
+.chin-e { font-size: 12.5px; color: var(--mut2) }
+.chin-a { display: flex; gap: 6px; align-items: center }
+.chin-a input { margin: 0; height: 36px; flex: 1; min-width: 0; font-size: 13px }
+.chin-a .btn { height: 36px; flex: none }
+.chin-w { color: var(--f-amber); font-size: 12px }
+.tbl .chin { min-width: 240px; margin: 0 }
+
+/* ================================================================== cartoons (components/Cartoons.tsx) */
+.cn { display: block; overflow: visible; --cn-ol: #1A1B20; --cn-lt: #FFFFFF; --cn-md: #E4E5E9; --cn-skin: #F2C29B; --cn-hair: #2C2019; --cn-pd: var(--pri-d); --cn-pg: color-mix(in srgb, var(--pri) 30%, #FFE3E8); --cn-tab: color-mix(in srgb, var(--acc) 60%, #B45309) }
+[data-theme=dark] .cn, .dk .cn { --cn-ol: #08090B; --cn-lt: #F1F2F5; --cn-md: #A9ADB8 }
+.cn .cn-o { stroke: var(--cn-ol); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round }
+.cn-p { fill: var(--pri) } .cn-pd { fill: var(--cn-pd) } .cn-a { fill: var(--acc) } .cn-g { fill: var(--ok) } .cn-i { fill: var(--info) } .cn-wn { fill: var(--warn) }
+.cn-lt { fill: var(--cn-lt) } .cn-md { fill: var(--cn-md) } .cn-md-f { fill: var(--cn-md) } .cn-k { fill: var(--cn-skin) } .cn-hr { fill: var(--cn-hair) }
+.cn-dk { fill: #23252B } .cn-dkf { fill: var(--cn-ol) } .cn-pk { fill: #F59AAE } .cn-pg { fill: var(--cn-pg) } .cn-pgd { fill: color-mix(in srgb, var(--cn-pg) 80%, var(--pri)) }
+.cn-gl { fill: color-mix(in srgb, var(--info) 14%, var(--cn-lt)) }
+.cn-sh { fill: var(--ink); opacity: .08 }
+.cn-hl { fill: none; stroke: #fff; stroke-opacity: .55; stroke-width: 3.2; stroke-linecap: round }
+.cn-ln { fill: none; stroke: var(--mut2); stroke-width: 2.4; stroke-linecap: round; opacity: .7 }
+.cn-dash { stroke: var(--mut2); stroke-width: 1.6; stroke-dasharray: 3 6; opacity: .6 }
+.cn-dks { fill: none; stroke: var(--cn-ol); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
+.cn-lt-s { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round }
+.cn-ok-s { fill: none; stroke: var(--ok); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round }
+.cn-a-s { fill: none; stroke: var(--acc); stroke-width: 2.6; stroke-linecap: round }
+.cn-md-s { fill: none; stroke: var(--cn-md); stroke-width: 2.4; stroke-linecap: round }
+.cn-stm { fill: none; stroke: var(--mut2); stroke-width: 2; stroke-linecap: round; opacity: .7; animation: steam 2.4s ease-in-out infinite }
+.cn-stm.d2 { animation-delay: .8s }
+.cn-sw { fill: color-mix(in srgb, var(--info) 55%, #fff) }
+.cn-tail { stroke: var(--cn-ol); stroke-width: 2.4; stroke-linecap: round }
+.cn-q { font: 800 30px var(--fh); fill: var(--pri-t); animation: flt 3s ease-in-out infinite }
+.cn-q.d2 { font-size: 22px; fill: var(--mut2); animation-delay: 1s }
+.cn-zz text { font: 800 16px var(--fh); fill: var(--mut2); animation: zz 3s ease-in-out infinite; opacity: 0 }
+.cn-zz .z2 { font-size: 19px; animation-delay: .8s }
+.cn-zz .z3 { font-size: 24px; animation-delay: 1.6s }
+.cn-bob { animation: bob 3.2s ease-in-out infinite; transform-box: fill-box }
+.cn-flt { animation: flt 3.6s ease-in-out infinite }
+.cn-flt.d2 { animation-delay: 1.2s }
+.cn-breathe { animation: breathe 3.6s ease-in-out infinite; transform-origin: 100px 130px }
+.cn-flame { animation: flame .35s ease-in-out infinite alternate; transform-origin: 44px 102px; transform-box: view-box }
+.cn-spd path { stroke-dasharray: 10 8; animation: spd .6s linear infinite }
+.cn-blink { animation: blink 2.4s step-end infinite }
+.cn-look { animation: look 4s ease-in-out infinite }
+.cn-ball { animation: jug 1.8s ease-in-out infinite }
+.cn-ball.b2 { animation-delay: .3s } .cn-ball.b3 { animation-delay: .6s }
+.cn-conf > * { animation: flt 2.6s ease-in-out infinite }
+.cn-conf > :nth-child(2n) { animation-delay: .7s } .cn-conf > :nth-child(3n) { animation-delay: 1.3s }
+.cn-wing { animation: wing .5s ease-in-out infinite alternate; transform-origin: 84px 66px; transform-box: view-box }
+@keyframes bob { 50% { transform: translateY(-4px) } }
+@keyframes flt { 50% { transform: translateY(-6px) } }
+@keyframes breathe { 50% { transform: scale(1.015, 1.03) } }
+@keyframes flame { to { transform: scaleX(1.25) } }
+@keyframes spd { to { stroke-dashoffset: -18 } }
+@keyframes blink { 50% { opacity: .35 } }
+@keyframes look { 0%, 100% { transform: translateX(0) } 35% { transform: translateX(-6px) } 70% { transform: translateX(4px) } }
+@keyframes jug { 50% { transform: translateY(-8px) } }
+@keyframes steam { 0% { opacity: 0; transform: translateY(4px) } 40% { opacity: .7 } 100% { opacity: 0; transform: translateY(-8px) } }
+@keyframes zz { 0% { opacity: 0; transform: translate(0, 6px) } 30% { opacity: .9 } 100% { opacity: 0; transform: translate(6px, -10px) } }
+@keyframes wing { to { transform: rotate(-12deg) } }
+
+/* empty state with a cartoon */
+.es-art { padding: 28px 20px 34px }
+.es-art-i { width: min(200px, 70%); margin: 0 auto 6px }
+.es-art h3 { margin-top: 4px }
+.es-art .btn { margin-top: 4px }
+
+/* ================================================================== greeting / hero with cartoon */
+.greet { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--gap); margin-bottom: var(--gap) }
+.greet-c { display: flex; align-items: flex-end; gap: 18px; min-width: 0 }
+.greet-c .cn { flex: none; width: 116px; margin-bottom: -6px }
+.greet .dh { margin: 0; min-width: 0 }
+
+/* app banners (trial / expired plan) */
+.pbn { display: flex; align-items: center; gap: 12px; width: calc(100% - 56px); max-width: calc(1480px - 56px); margin: 16px auto 0; padding: 10px 12px 10px 16px; border-radius: var(--r); font-size: 13.5px; font-weight: 500; box-shadow: var(--sh) }
+.pbn .ic { width: 18px; height: 18px; flex: none }
+.pbn span { flex: 1; min-width: 0 }
+.pbn .btn { flex: none }
+.pbn.trial { background: var(--dk-bg); color: #fff; border: 1px solid var(--dk-bd) }
+.pbn.trial .ic { color: var(--acc) }
+.pbn.expired { background: var(--dk-pri); color: #fff }
+.pbn.expired .ic { color: var(--acc) }
+.pbn b { color: #fff }
+.pbn .ib { color: rgba(255, 255, 255, .7) }
+.pbn .ib:hover { background: rgba(255, 255, 255, .1); color: #fff }
+.sb-plan.exp { background: var(--tex-w) 0 0 / var(--tex-size), linear-gradient(140deg, #2A2C33, #16171B) }
+
+/* ================================================================== plan & billing */
+.bil-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--gap); align-items: center; padding: 24px 26px }
+.bil-h h2 { font: 800 26px/1.15 var(--fh); letter-spacing: -.02em; color: var(--ink); margin: 6px 0 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.bil-h p { color: var(--mut); margin: 0 }
+.bil-h .cn { width: 150px }
+.bil-m { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 13px; color: var(--mut) }
+.bil-m span { display: inline-flex; align-items: center; gap: 6px }
+.bil-m .ic { width: 15px; height: 15px; color: var(--c) }
+.bil-m b { color: var(--ink) }
+.bil-a { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px }
+.lim { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: var(--gap-s) }
+.lim-i { border: 1px solid var(--line2); border-radius: var(--rs); padding: 14px; background: var(--surface-2); min-width: 0 }
+.lim-h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--txt) }
+.lim-h .ic { width: 16px; height: 16px; color: var(--c) }
+.lim-v { display: flex; align-items: baseline; gap: 6px; margin: 8px 0 8px; font-variant-numeric: tabular-nums }
+.lim-v b { font: 800 22px var(--fh); color: var(--ink); letter-spacing: -.02em }
+.lim-v span { color: var(--mut); font-size: 12.5px }
+.lim-t { height: 8px; background: var(--surface-3); border-radius: 999px; overflow: hidden }
+.lim-t i { display: block; height: 100%; border-radius: 999px; background: var(--ok); transform-origin: left; animation: growx .8s var(--ease) both }
+.lim-t i.warn { background: var(--warn) }
+.lim-t i.hot { background: var(--err) }
+.lim-t.inf i { background: var(--stripe), color-mix(in srgb, var(--ok) 50%, transparent); width: 100% }
+.lim-f { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; font-size: 11.5px; color: var(--mut) }
+.lim-f b { color: var(--txt); font-weight: 650 }
+@keyframes growx { from { transform: scaleX(0) } }
+
+.prc-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: var(--gap-s) }
+.prc { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--gap); margin-bottom: var(--gap) }
+.prc-c { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: var(--rl); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sh); transition: transform .2s var(--ease), box-shadow .2s, border-color .2s; min-width: 0 }
+.prc-c:hover { transform: translateY(-3px); box-shadow: var(--sh-hover) }
+.prc-c.cur { border-color: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 18%, transparent), var(--sh) }
+.prc-c.dk { border-color: var(--dk-bd) !important; background: radial-gradient(120% 70% at 100% 0, color-mix(in srgb, var(--pri) 38%, transparent) 0, transparent 60%), var(--dk-bg) }
+.prc-c .rb { position: absolute; top: -11px; left: 22px; background: var(--acc); color: var(--acc-ink); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; box-shadow: 0 6px 14px color-mix(in srgb, var(--acc) 35%, transparent) }
+.prc-n { display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.prc-n b { font: 800 17px var(--fh); color: var(--ink) }
+.prc-p { font: 800 34px/1.05 var(--fh); color: var(--ink); letter-spacing: -.03em }
+.prc-p small { font: 500 13px var(--ff); color: var(--mut); letter-spacing: 0; margin-left: 4px }
+.prc-s { font-size: 12px; color: var(--f-green); font-weight: 650; min-height: 18px }
+.prc-d { font-size: 13px; color: var(--mut); margin: 0; line-height: 1.5 }
+.prc-l { list-style: none; padding: 12px 0 0; margin: 0; display: flex; flex-direction: column; gap: 7px; font-size: 13px; border-top: 1px dashed var(--line); flex: 1 }
+.prc-l li { display: flex; gap: 8px; align-items: flex-start; color: var(--txt) }
+.prc-l .ic { width: 15px; height: 15px; flex: none; margin-top: 2px; padding: 2px; box-sizing: content-box; border-radius: 50%; background: var(--f-green-s); color: var(--f-green); stroke-width: 3 }
+.prc-c .btn { width: 100%; margin-top: 4px }
+.gw { display: flex; gap: 8px; flex-wrap: wrap }
+.gw button { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--txt); font: 600 13px var(--ff); cursor: pointer; transition: border-color .15s, background .15s }
+.gw button:hover { border-color: color-mix(in srgb, var(--ink) 25%, var(--line)) }
+.gw button.on { border-color: var(--pri-t); background: var(--pri-s); color: var(--pri-t) }
+.gw button i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor }
+.gw button.on i { background: currentColor; box-shadow: inset 0 0 0 2px var(--pri-s) }
+
+/* usage page: plan summary on top */
+.upl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--gap); margin-bottom: var(--gap) }
+.upl > .card { margin: 0 }
+.upl-s { display: flex; flex-direction: column; gap: 14px }
+.upl-s h2 { font: 800 24px/1.15 var(--fh); color: var(--ink); letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px }
+.upl-s p { margin: 0; color: var(--mut); font-size: 13px }
+.upl-s .btn { align-self: flex-start }
+.dk .eyebrow { color: var(--acc) }
+
+@media (max-width: 1100px) { .upl { grid-template-columns: 1fr } }
+@media (max-width: 900px) {
+  .pbn { width: calc(100% - 28px); margin: 12px auto 0 }
+  .greet { grid-template-columns: 1fr }
+  .greet .pha { justify-content: flex-start }
+}
+@media (max-width: 560px) {
+  .greet-c .cn { width: 84px }
+  .bil-h { grid-template-columns: 1fr; padding: 18px }
+  .bil-h .cn { display: none }
+  .pbn { flex-wrap: wrap }
+  .bch-y { display: none }
+  .bch { grid-template-columns: minmax(0, 1fr) }
+}
