@@ -110,6 +110,20 @@ recovered; if it is changed, they stop working. Never change it.
 Running the installer again is safe: it only adds what is missing and never replaces the master key or
 database passwords.
 
+### n8n (or another Docker app) already uses ports 80/443 through Traefik?
+
+Hostinger's n8n / Docker Manager templates run **Traefik**, which holds ports 80/443, so Caddy cannot
+start. Let Caddy serve every site instead (n8n keeps its address and data). With your token in place of
+`PASTE_TOKEN_HERE` (Notepad method from step 5):
+
+```bash
+T=PASTE_TOKEN_HERE; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/caddy-takeover.sh -o /tmp/caddy-takeover.sh && sudo bash /tmp/caddy-takeover.sh; history -c
+```
+
+It lists the sites it will move, asks for **y**, switches, and checks each address. Undo any time:
+`sudo bash /tmp/caddy-takeover.sh --undo`. If you later **re-deploy the Traefik project in hPanel's Docker
+Manager**, it takes the ports back – run the script again.
+
 ## 6. First login as platform admin
 
 1. Open your CRM address (e.g. `https://crm.yourcompany.com`) and sign in with the admin email and the password you chose.
