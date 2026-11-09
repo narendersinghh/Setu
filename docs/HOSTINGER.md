@@ -65,6 +65,16 @@ Now copy this **one line**, paste it into the terminal (right-click → Paste) a
 bash -c 'read -rsp "Paste your GitHub token and press Enter: " T </dev/tty; echo; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh || echo "Download failed – check the token and try again."'
 ```
 
+**Token prompt does not accept a paste?** (some browser terminals block pasting into hidden prompts) –
+put the token inside the command instead: paste the line below into Notepad, replace `PASTE_TOKEN_HERE`
+with your token (no spaces), copy the whole line and paste it into the terminal:
+
+```bash
+T=PASTE_TOKEN_HERE; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh; history -c
+```
+
+`history -c` removes the line (and the token) from the terminal history afterwards.
+
 The installer then asks a few questions – just type the answer and press Enter:
 
 | Question | What to type |
