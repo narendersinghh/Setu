@@ -122,7 +122,7 @@ func hook(c *app.Ctx) (any, error) {
 	if r.Method == http.MethodGet {
 		in = decodeQuery(r.URL.RawQuery).without("k")
 		if len(in) == 0 {
-			text(w, 200, "Setu lead capture endpoint is active.")
+			text(w, 200, "Lead capture endpoint is active.")
 			return nil, nil
 		}
 	} else {

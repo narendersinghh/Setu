@@ -5,13 +5,14 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { BrandMark, ThemeToggle, useBrand } from '@/lib/theme'
 import { Alert, Avatar, Btn, Field, Hi, Icon, Secret } from '@/components/ui'
+import { CoffeeBot, Detective, RocketRider, Trophy } from '@/components/Cartoons'
 
 interface Plan { id: number; name: string; slug: string; description: string; price_month: number; price_year: number; currency: string; trial_days: number; highlight: boolean; features: string[] | null; is_default?: boolean }
 
 const FEATURES = ['Leads, pipeline board & custom fields', 'Website forms, Meta & Google Ads capture', 'Email, WhatsApp & AI calls', 'Bookings synced with Google Calendar', 'Automations that follow up for you', 'Google Maps prospecting & AI reports']
 
 /** Brand panel (left half on desktop). */
-function Side({ title, text }: { title: ReactNode; text: string }) {
+function Side({ title, text, art }: { title: ReactNode; text: string; art?: ReactNode }) {
   const b = useBrand()
   return <aside className="auth-l" aria-hidden="false">
     <div className="al-b"><BrandMark on="dark" size={44} /><b>{b.name}</b></div>
@@ -21,6 +22,7 @@ function Side({ title, text }: { title: ReactNode; text: string }) {
       <ul>{FEATURES.map(f => <li key={f}><i><Icon n="check" /></i>{f}</li>)}</ul>
     </div>
     <div className="mock" aria-hidden="true">
+      {art && <div className="mock-a">{art}</div>}
       <div className="mock-c"><div className="mk-h"><Hi n="users" c="green" /><span><b>New leads</b><small>Last 7 days</small></span></div>
         <div className="mk-v"><b>128</b><span className="trend up"><Icon n="trendUp" />+18%</span></div>
         <div className="mk-bars">{[40, 62, 35, 70, 55, 88, 100].map((h, i) => <i key={i} className={i === 6 ? 'on' : ''} style={{ height: h + '%' }} />)}</div></div>
@@ -31,12 +33,13 @@ function Side({ title, text }: { title: ReactNode; text: string }) {
 }
 
 /** Page frame: brand panel + form column with theme toggle. */
-function Shell({ children, side, wide, top }: { children: ReactNode; side: [ReactNode, string]; wide?: boolean; top?: ReactNode }) {
+function Shell({ children, side, wide, top, art }: { children: ReactNode; side: [ReactNode, string]; wide?: boolean; top?: ReactNode; art?: ReactNode }) {
   const b = useBrand()
   return <div className={'auth' + (wide ? ' wide' : '')}>
-    <Side title={side[0]} text={side[1]} />
+    <Side title={side[0]} text={side[1]} art={art} />
     <main className="auth-r">
       <div className="auth-top"><Link to="/login" className="ab"><BrandMark size={34} />{b.name}</Link>{top}<ThemeToggle /></div>
+      {art && <div className="auth-art" aria-hidden="true">{art}</div>}
       {children}
       <p className="auth-foot">© {new Date().getFullYear()} {b.name}</p>
     </main>
@@ -64,7 +67,7 @@ export function Login() {
   const submit = (e: FormEvent) => { e.preventDefault(); go() }
   const signup = b.signup && ws.data?.signup !== false
   document.title = 'Sign in · ' + b.name
-  return <Shell side={[<>Every lead, <em>one bridge</em> to conversion.</>, 'Capture, follow up and close – your whole pipeline in one calm, fast workspace.']}
+  return <Shell art={<RocketRider w={190} />} side={[<>Every lead, <em>one bridge</em> to conversion.</>, 'Capture, follow up and close – your whole pipeline in one calm, fast workspace.']}
     top={signup && !choose ? <span className="muted sm">New here? <Link to="/signup">Create account</Link></span> : undefined}>
     <form className="auth-f" onSubmit={submit}>
       {choose ? <>
@@ -112,7 +115,7 @@ export function Signup() {
     try { await api.post('/signup', { ...f, ...(chosen ? { plan_id: chosen } : {}) }); location.href = '/dashboard' } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
   document.title = 'Create account · ' + b.name
-  return <Shell wide={list.length > 1} side={[<>Start closing more deals <em>this week</em>.</>, 'Set up in minutes. Your team, leads and settings stay private to your organisation.']}
+  return <Shell art={<Trophy w={180} />} wide={list.length > 1} side={[<>Start closing more deals <em>this week</em>.</>, 'Set up in minutes. Your team, leads and settings stay private to your organisation.']}
     top={<span className="muted sm">Have an account? <Link to="/login">Sign in</Link></span>}>
     <form className="auth-f" onSubmit={submit}>
       <h1>Create your workspace</h1>
@@ -155,7 +158,7 @@ export function Forgot() {
     try { await api.post('/password/forgot', { email }); setSent(true) } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
   document.title = 'Forgot password · ' + b.name
-  return <Shell side={[<>Locked out? <em>No problem.</em></>, 'We will email you a secure link to choose a new password.']}>
+  return <Shell art={<Detective w={180} />} side={[<>Locked out? <em>No problem.</em></>, 'We will email you a secure link to choose a new password.']}>
     <form className="auth-f" onSubmit={submit}>
       {sent ? <div className="auth-ok">
         <Hi n="mail" c="green" lg />
@@ -189,7 +192,7 @@ export function Reset() {
     try { await api.post('/password/reset', { token, password: f.password }); setDone(true) } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
   document.title = 'Choose a new password · ' + b.name
-  return <Shell side={[<>A fresh start, <em>secured</em>.</>, 'Choose a strong password you do not use anywhere else.']}>
+  return <Shell art={<CoffeeBot w={180} />} side={[<>A fresh start, <em>secured</em>.</>, 'Choose a strong password you do not use anywhere else.']}>
     <form className="auth-f" onSubmit={submit}>
       {done ? <div className="auth-ok">
         <Hi n="check" c="green" lg />

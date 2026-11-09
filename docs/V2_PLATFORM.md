@@ -57,3 +57,26 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`): every pu
 The platform admin clicks **Update**: the binary downloads the asset for its OS/arch, verifies the
 checksum, replaces itself and exits; systemd restarts it and migrations run. Channel: stable | edge;
 private repositories need a GitHub token.
+
+## Billing & payment gateways (plan purchasing)
+Gateways (platform admin → Payments): **Razorpay** (Payment Links, hosted page) and **Stripe** (Checkout,
+hosted page). Keys are encrypted platform settings. Webhooks confirm payments:
+`/webhooks/billing/razorpay`, `/webhooks/billing/stripe`.
+
+Plan status per organisation: `free` (price 0), `trial` (trial_ends_at in the future), `active`
+(plan_expires_at in the future, or a paid plan assigned by the platform admin without dates), `expired`
+(paid plan whose trial / paid period ended → the organisation automatically runs on the default plan's
+modules & limits until it pays).
+
+* `GET /api/billing` (owners & admins, perm `settings`) →
+  `{plan:{id,name,price_month,price_year,currency}, status, trial_ends_at, expires_at, effective_plan,
+    limits:[{key,label,limit,used}], plans:[public plans…], gateways:[{key,name}], payments:[{id,plan,cycle,
+    amount,currency,status,gateway,created_at,paid_at}]}`
+* `POST /api/billing/checkout {plan_id, cycle:"month"|"year", gateway}` → `{url}` – redirect the browser.
+  Afterwards the customer returns to `/billing?paid=1` (or `?failed=1`).
+* `/api/me` adds `org.plan_status` and `org.plan_expires_at` (plus `trial_ends_at`) and `billing:true` when a
+  gateway is enabled.
+* Platform: `GET/PUT /api/platform/payments/settings` (`razorpay_enabled, razorpay_key_id,
+  razorpay_key_secret, razorpay_webhook_secret, stripe_enabled, stripe_secret_key, stripe_webhook_secret`;
+  response adds `webhooks:{razorpay,stripe}` URLs to copy), `GET /api/platform/payments` (all payments with
+  organisation names).

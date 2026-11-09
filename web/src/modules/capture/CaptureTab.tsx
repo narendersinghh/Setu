@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 import { Alert, Badge, Btn, Field, Hi, Icon, Secret, Spinner, Switch, confirmDo, toast } from '@/components/ui'
+import { BrandName, useBrand } from '@/lib/theme'
 
 interface SrcType { key: string; label: string; desc: string; ic: string; c: string; hint: string }
 interface KeyRow { key: string; label: string; sample: string; auto: string; auto_label: string }
@@ -61,7 +62,7 @@ export default function CaptureTab() {
       <div className="card-h"><h3><Hi n="book" c="blue" />How field mapping works</h3></div>
       <ol className="ol mt0">
         <li>Your form sends its fields (for example <code>Name</code>, <code>Mobile</code>, <code>Which service?</code>) to the source URL.</li>
-        <li>Setu matches common names automatically: <code>name / full name</code> → Contact person, <code>phone / mobile / whatsapp</code> → Phone, <code>email</code> → Email, <code>company</code> → Business, <code>city</code>, <code>service</code>, <code>budget</code> → Deal value, <code>message</code> → Enquiry. Your custom field keys match too.</li>
+        <li><BrandName /> matches common names automatically: <code>name / full name</code> → Contact person, <code>phone / mobile / whatsapp</code> → Phone, <code>email</code> → Email, <code>company</code> → Business, <code>city</code>, <code>service</code>, <code>budget</code> → Deal value, <code>message</code> → Enquiry. Your custom field keys match too.</li>
         <li>Anything it doesn't recognise is saved in the lead's enquiry notes – nothing is lost.</li>
         <li>After the first enquiry arrives (send a test from your form), each source below shows a <b>Field mapping</b> table with every field it received. Change any row to send that field where you want, then Save.</li>
       </ol>
@@ -122,7 +123,7 @@ function SourceCard({ s, data, reload }: { s: Source; data: Data; reload: () => 
     </>}
 
     {s.type === 'website' && <>
-      <Alert><b>Use only ONE of the options below for each form.</b> Webhook + script together would send every enquiry twice (Setu merges duplicates by phone/email, but you'd see double activity).</Alert>
+      <Alert><b>Use only ONE of the options below for each form.</b> Webhook + script together would send every enquiry twice (<BrandName /> merges duplicates by phone/email, but you'd see double activity).</Alert>
       <details className="opt" open>
         <summary><Hi n="zap" c="violet" />Option 1 – Elementor / WordPress form plugin <span className="rec">Recommended</span></summary>
         <ol className="ol">
@@ -134,7 +135,7 @@ function SourceCard({ s, data, reload }: { s: Source; data: Data; reload: () => 
       </details>
       <details className="opt">
         <summary><Hi n="globe" c="blue" />Option 2 – any other form on your site (script)</summary>
-        <p className="sm mt">For forms without a webhook setting. Paste once before <code>&lt;/body&gt;</code> (or in your theme's footer scripts). It copies every form submission on that page to Setu and leaves your form working as before.</p>
+        <p className="sm mt">For forms without a webhook setting. Paste once before <code>&lt;/body&gt;</code> (or in your theme's footer scripts). It copies every form submission on that page to <BrandName /> and leaves your form working as before.</p>
         <pre>{s.script}</pre>
         <Btn sm ic="copy" onClick={() => copy(s.script)}>Copy script</Btn>
       </details>

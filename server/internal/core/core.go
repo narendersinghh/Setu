@@ -127,7 +127,7 @@ func signup(c *app.Ctx) (any, error) {
 			return err
 		case !secure.CheckPassword(hash, in.Password):
 			// Existing Setu login: the password must match so nobody can attach an account they do not own
-			return app.Bad("This email already has a Setu login. Enter its password to create another workspace.")
+			return app.Bad("This email already has a " + c.A.BrandName(c) + " login. Enter its password to create another workspace.")
 		}
 		if _, err := tx.Exec(c, `INSERT INTO memberships (org_id,user_id,role) VALUES ($1,$2,'super')`, orgID, userID); err != nil {
 			return err
@@ -314,14 +314,16 @@ func me(c *app.Ctx) (any, error) {
 			limits[k[0]] = map[string]any{"limit": lim, "used": app.Usage(c, c.Tx(), k[0]), "label": k[1]}
 		}
 	}
-	var trialEnd *time.Time
-	c.A.DB.Pool.QueryRow(c, `SELECT trial_ends_at FROM orgs WHERE id=$1`, c.Org.ID).Scan(&trialEnd)
-	org := map[string]any{"id": c.Org.ID, "slug": c.Org.Slug, "name": c.Org.Name, "status": c.Org.Status, "plan": map[string]any{"id": c.Org.PlanID, "name": c.Org.Plan}, "trial_ends_at": trialEnd}
+	var trialEnd, expires *time.Time
+	c.A.DB.Pool.QueryRow(c, `SELECT trial_ends_at, plan_expires_at FROM orgs WHERE id=$1`, c.Org.ID).Scan(&trialEnd, &expires)
+	org := map[string]any{"id": c.Org.ID, "slug": c.Org.Slug, "name": c.Org.Name, "status": c.Org.Status, "plan": map[string]any{"id": c.Org.PlanID, "name": c.Org.Plan},
+		"plan_status": c.Org.PlanStatus, "trial_ends_at": trialEnd, "plan_expires_at": expires}
 	return map[string]any{
 		"user": c.User, "org": org, "workspaces": ws, "csrf": c.CSRF, "perms": perms, "support": c.Support,
 		"modules":  map[string]bool{"crm": true, "prospecting": c.Mod("prospecting")},
 		"limits":   limits,
 		"brand":    brand,
+		"billing":  len(Gateways(c, c.A)) > 0,
 		"roles":    app.Roles,
 		"settings": map[string]string{"company_name": s.Get("company_name", c.Org.Name), "currency": s.Get("currency", "INR"), "currency_symbol": s.Get("currency_symbol", "₹"), "timezone": s.Get("timezone", "Asia/Kolkata"), "default_country_code": s.Get("default_country_code", "91"), "logo_dark": s.Get("company_logo", ""), "logo_light": s.Get("company_logo_light", "")},
 	}, nil
@@ -489,7 +491,7 @@ func teamSave(c *app.Ctx) (any, error) {
 	}
 	msg := in.Name + " added. Share the sign-in link and password with them."
 	if existing {
-		msg = in.Email + " already has a Setu login – they can sign in with their existing password."
+		msg = in.Email + " already has a " + c.A.BrandName(c) + " login – they can sign in with their existing password."
 	}
 	return map[string]any{"ok": true, "id": uid, "message": msg}, nil
 }

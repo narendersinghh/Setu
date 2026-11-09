@@ -1,11 +1,212 @@
-.pc-pbar{display:flex;align-items:flex-end;gap:4px;height:130px;padding:8px 0}
-.pc-pbar span{flex:1;background:var(--pri);border-radius:6px 6px 2px 2px;opacity:.85;min-width:4px}
-.pc-plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
-.pc-plan.pc-hl{outline:2px solid var(--pri)}
-.pc-plan-p{font-size:28px;font-weight:800;margin:8px 0 2px}.pc-plan-p small{font-size:13px;font-weight:500;opacity:.6;margin-left:4px}
-.pc-plan-l{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px;font-size:12.5px}.pc-plan-l span{display:flex;justify-content:space-between;gap:6px}.pc-plan-l small{opacity:.65}
-.pc-clk{cursor:pointer}
-.pc-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:14px}.pc-kv span{opacity:.65}
-.pc-notes{white-space:pre-wrap;font:13px/1.5 ui-monospace,monospace;max-height:220px;overflow:auto;padding:12px;border-radius:10px;background:rgba(127,127,127,.08)}
-.pc-bprev{padding:22px;border:1px solid rgba(127,127,127,.2)}.pc-bprev h3{margin:0 0 4px;font-size:22px}.pc-bprev p{opacity:.7;margin:0 0 14px}
-.pc-bprev-b{display:inline-block;color:#fff;padding:9px 16px;border-radius:999px;font-weight:600;font-size:13px}
+/* Platform console – only pc-* classes (plus the shared app kit). Every colour, radius and gap comes from tokens.css. */
+
+.pc-env { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--mut); font-size: 12px; font-weight: 600; max-width: 220px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+.pc-env .ic { width: 14px; height: 14px; color: var(--f-green) }
+
+/* overview hero */
+.pc-hero { display: flex; align-items: center; gap: var(--gap); padding: 26px 28px; overflow: hidden }
+.pc-hero h2 { font: 800 clamp(22px, 2.4vw, 30px)/1.15 var(--fh); letter-spacing: -.03em; color: var(--ink); margin: 4px 0 6px }
+.pc-hero h2 span { color: var(--acc) }
+.pc-hero p { color: var(--mut); margin: 0 }
+.pc-hero .cn { flex: none; margin: -10px 0 -16px }
+.pc-big { font: 800 22px var(--fh); color: var(--ink); letter-spacing: -.02em }
+.pc-big small { font: 500 12.5px var(--ff); color: var(--mut) }
+
+/* plan breakdown: MRR bars next to the donut */
+.pc-pb { display: flex; flex-direction: column; gap: 12px; margin-top: var(--gap); padding-top: 16px; border-top: 1px solid var(--line2) }
+.pc-pb > div { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto; gap: 12px; align-items: center; font-size: 12.5px }
+.pc-pb-n { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--txt); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-pb-n i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--s); flex: none }
+.pc-pb-n em { font-style: normal; color: var(--mut); font-weight: 500 }
+.pc-pb-t { height: 8px; background: var(--surface-3); border-radius: 999px; overflow: hidden }
+.pc-pb-t i { display: block; height: 100%; border-radius: 999px; background: var(--c); transform-origin: left; animation: growx .8s var(--ease) both }
+.pc-pb b { color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; min-width: 64px }
+.pc-pb + * { margin-top: 0 }
+
+/* simple rows (newest orgs, team, payments) */
+.pc-list { display: flex; flex-direction: column }
+.pc-li { display: flex; align-items: center; gap: 12px; padding: 12px var(--pad); border-bottom: 1px solid var(--line2); color: var(--txt); min-width: 0; transition: background .15s }
+.pc-li:last-child { border-bottom: 0 }
+a.pc-li:hover { background: var(--hover) }
+.pc-li b { display: block; color: var(--ink); font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-li small { display: block; color: var(--mut); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-li-r { display: flex; align-items: center; gap: 8px; flex: none }
+.pc-list.tight .pc-li { padding: 9px 0 }
+.pc-chev { color: var(--mut2); width: 16px; height: 16px; transition: transform .15s }
+a.pc-li:hover .pc-chev, .pc-clk:hover .pc-chev { transform: translateX(3px); color: var(--ink) }
+
+.pc-jobs-g { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-s) }
+.pc-jobs-g > div { border-radius: var(--rs); padding: 14px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .06) }
+.pc-jobs-g b { display: block; font: 800 26px/1.1 var(--fh); color: var(--ink) }
+.pc-jobs-g span { font-size: 12px; color: var(--mut) }
+.pc-jobs-g .bad b { color: var(--f-rose) }
+
+/* organisations */
+.pc-fbar .seg { flex-wrap: wrap }
+.pc-fbar .seg button { height: 30px; padding: 0 12px }
+.pc-n { font-style: normal; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 8px; background: var(--surface); color: var(--mut); margin-left: 2px; line-height: 17px }
+.seg button.on .pc-n { background: var(--acc); color: var(--acc-ink) }
+.pc-clk { cursor: pointer }
+.pc-clk:focus-visible td { background: var(--hover) }
+.pc-plan-c { display: flex; flex-direction: column; align-items: flex-start; gap: 4px }
+.pc-plan-c b { color: var(--ink); font-weight: 600 }
+.pc-tbl td { white-space: nowrap }
+.pc-tbl td:first-child { white-space: normal; min-width: 220px }
+
+/* organisation detail */
+.pc-back { margin-bottom: var(--gap-s) }
+.pc-oh { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 22px 24px }
+.pc-oh h2 { font: 800 24px/1.2 var(--fh); letter-spacing: -.02em; color: var(--ink); display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.pc-oh .grow { min-width: 240px }
+.pc-oh-b { margin-top: 10px; gap: 6px }
+.pc-sw { display: flex !important; align-items: center; gap: 12px; margin: 0 0 14px; font-weight: 400 }
+.pc-sw b { display: block; font-size: 13.5px; color: var(--ink) }
+.pc-sw small { display: block; font-size: 12px; color: var(--mut) }
+.pc-lims { display: flex; flex-direction: column; gap: 14px }
+.pc-lim { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: var(--gap-s); align-items: end }
+.pc-lim input { margin: 0; height: 36px; font-size: 13px }
+.pc-lim .prgs-h span { display: inline-flex; align-items: center; gap: 6px }
+.pc-mods { display: grid; gap: 10px }
+.pc-mod { display: flex !important; align-items: center; gap: 12px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--rs); background: var(--surface); cursor: pointer; transition: border-color .15s, background .15s; font-weight: 400 }
+.pc-mod b { display: block; font-size: 13.5px; color: var(--ink) }
+.pc-mod small { display: block; font-size: 12px; color: var(--mut) }
+.pc-mod.on { border-color: color-mix(in srgb, var(--c) 45%, var(--line)); background: var(--s) }
+
+/* plans */
+.pc-ph { display: flex; align-items: center; gap: var(--gap); margin-bottom: var(--gap) }
+.pc-ph p { margin: 0; flex: 1; min-width: 0 }
+.pc-plans { align-items: stretch }
+.pc-plan .prc-l { flex: none }
+.pc-pl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 12px; flex: 1; align-content: start }
+.pc-pl span { display: flex; align-items: center; gap: 6px; min-width: 0 }
+.pc-pl .ic { width: 13px; height: 13px; color: var(--mut2); flex: none }
+.pc-pl small { color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0 }
+.pc-pl b { color: var(--ink); font-variant-numeric: tabular-nums }
+.pc-pm { display: flex; gap: 6px; flex-wrap: wrap }
+.pc-pf { display: flex; align-items: center; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line2); margin-top: 2px }
+.pc-pf small { color: var(--mut); font-size: 12px }
+.pc-plan .pc-pf .btn { width: auto; margin: 0 }
+.pc-ed { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start }
+.pc-ed-f .sec { margin-top: 8px }
+.pc-ed-f .sec:first-child { margin-top: 0 }
+.pc-ed-p { position: sticky; top: 0; align-self: stretch }
+.pc-ed-s { position: sticky; top: 0 }
+.pc-ed-p .prc-c:hover { transform: none }
+.pc-ed-p .md-f { margin-top: var(--gap) }
+.pc-cap { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); margin-bottom: 14px }
+.pc-cap .ic { width: 14px; height: 14px }
+.pc-sws { display: grid; gap: 4px }
+
+/* payments */
+.pc-gws { margin-bottom: var(--gap-s) }
+.pc-gw { display: flex; flex-direction: column }
+.pc-gw-h { display: flex; align-items: center; gap: 12px; padding: 16px var(--pad); border-radius: var(--r) var(--r) 0 0; box-shadow: none; flex-wrap: wrap }
+.pc-gw-h b { display: block; font: 700 16px var(--fh); color: var(--ink) }
+.pc-gw-h small { display: block; font-size: 12px; color: var(--mut) }
+.pc-gw-l { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--c); color: #fff; font: 800 19px var(--fh); flex: none }
+.pc-gw-s { display: flex; align-items: center; gap: 10px; margin-left: auto }
+.pc-gw-b { padding: 18px var(--pad) 6px }
+.pc-gw.on { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)) }
+.pc-gwb { display: inline-flex; padding: 2px 9px; border-radius: 7px; background: var(--surface-3); font-size: 12px; font-weight: 600 }
+.pc-save { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: var(--gap) }
+
+/* branding: live preview (re-derives the brand shades from the colours being edited) */
+.pc-pvw { position: sticky; top: 92px }
+.pc-pvh { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px }
+.pc-pvh .pc-cap { margin: 0 }
+.pc-pv {
+  --pri-h: color-mix(in srgb, var(--pri) 84%, #000); --pri-d: color-mix(in srgb, var(--pri) 62%, #000); --acc-h: color-mix(in srgb, var(--acc) 88%, #000);
+  --grad-pri: linear-gradient(140deg, var(--pri) 0%, var(--pri-d) 100%);
+  --dk-pri: color-mix(in srgb, var(--pri) 58%, #12060A); --rs: calc(var(--r) * .66);
+  display: grid; grid-template-columns: 150px minmax(0, 1fr); border-radius: var(--r); overflow: hidden; border: 1px solid var(--line);
+  background: var(--tex) 0 0 / var(--tex-size), var(--bg); color: var(--txt); font-family: var(--ff); box-shadow: var(--sh); margin-bottom: var(--gap-s); min-height: 340px
+}
+.pc-pv[data-theme=dark] { --dk-bg: #1D2027; --dk-pri: color-mix(in srgb, var(--pri) 42%, #14090C) }
+.pc-pv h1, .pc-pv h2, .pc-pv b { font-family: var(--fh) }
+.pc-pv-sb { background: #141518; padding: 14px 10px; display: flex; flex-direction: column; gap: 4px }
+.pc-pv-b { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; min-width: 0 }
+.pc-pv-b b { display: block; color: #fff; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-pv-b small { display: block; color: #8A8D95; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-pv-b > span:last-child { min-width: 0 }
+.pc-pv-n { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 999px; color: #B7B9C0; font-size: 12px; font-weight: 500 }
+.pc-pv-n .ic { width: 14px; height: 14px }
+.pc-pv-n.on { background: var(--acc); color: var(--acc-ink); font-weight: 650 }
+.pc-pv-m { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.pc-pv-t { display: flex; align-items: center; gap: 8px }
+.pc-pv-t b { font-size: 16px; color: var(--ink) }
+.pc-pv-k { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.pc-pv-k .stat { padding: 12px; grid-template-areas: "i l l" "v v v" "f f f"; column-gap: 8px }
+.pc-pv-k .st-i { width: 30px; height: 30px; border-radius: 9px }
+.pc-pv-k .st-v { font-size: 20px; margin-top: 8px }
+.pc-pv-c { margin: 0; padding: 14px; display: flex; flex-direction: column; gap: 12px }
+.pc-pv-c b { color: var(--ink) }
+.pc-pv-bars { display: flex; align-items: flex-end; gap: 6px; height: 56px }
+.pc-pv-bars i { flex: 1; border-radius: 5px 5px 2px 2px; background: var(--surface-3) }
+.pc-pv-bars i.on { background: var(--pri) }
+.pc-pv .btn { pointer-events: none }
+.pc-sws2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: var(--gap-s) }
+.pc-clr { display: flex !important; align-items: center; gap: 12px; margin: 0; padding: 10px; border: 1px solid var(--line2); border-radius: var(--rs); background: var(--surface-2) }
+.pc-clr b { display: block; font-size: 12px; color: var(--mut); font-weight: 600 }
+.pc-clr .grow input { margin: 2px 0 0; height: 30px; padding: 0 8px; font: 600 13px var(--fm); background: transparent; border-color: transparent }
+.pc-clr .grow input:focus { background: var(--surface); border-color: var(--pri-t) }
+.pc-clr-s { position: relative; width: 40px; height: 40px; border-radius: 12px; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); overflow: hidden; cursor: pointer; transition: transform .15s }
+.pc-clr-s:hover { transform: scale(1.06) }
+.pc-clr-s input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer }
+.pc-up { display: flex; align-items: center; gap: 10px; margin-top: 6px }
+.pc-up input { margin: 0 }
+.pc-up-i { width: 46px; height: 46px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; flex: none; overflow: hidden; color: var(--mut2) }
+.pc-up-i.dk { background: #141518; border-color: #141518 }
+.pc-up-i img { max-width: 100%; max-height: 100%; object-fit: contain }
+.pc-rng { padding: 0; height: 30px; border: 0; accent-color: var(--pri); background: transparent; box-shadow: none !important }
+
+/* email, updates, admins */
+.pc-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-s); margin-bottom: 16px }
+.pc-opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--rs); border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; font: inherit; color: var(--txt); transition: border-color .15s, box-shadow .15s }
+.pc-opt b { display: block; font-size: 13.5px; color: var(--ink) }
+.pc-opt small { display: block; font-size: 12px; color: var(--mut) }
+.pc-opt i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); flex: none }
+.pc-opt.on { border-color: var(--pri-t); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 10%, transparent) }
+.pc-opt.on i { border: 5px solid var(--pri) }
+.pc-tip { position: relative; overflow: hidden; padding-right: 150px; min-height: 150px }
+.pc-tip p { color: var(--txt); font-size: 13.5px; margin: 0 }
+.pc-tip .cn { position: absolute; right: 10px; bottom: 8px }
+.pc-ver-h { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px }
+.pc-ver-h h2 { font: 800 28px/1.1 var(--fh); color: var(--ink); letter-spacing: -.02em; margin-top: 2px }
+.pc-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap-s) }
+.pc-kv > div { padding: 10px 12px; border-radius: var(--rs); background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .06); min-width: 0 }
+.pc-kv span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: var(--mut) }
+.pc-kv b { display: block; color: var(--ink); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pc-notes { white-space: pre-wrap; font: 12.5px/1.55 var(--fm); max-height: 260px; overflow: auto; padding: 14px; border-radius: var(--rs); background: var(--surface-2); color: var(--txt); border: 1px solid var(--line2) }
+
+@media (max-width: 1180px) {
+  .pc-ed { grid-template-columns: 1fr }
+  .pc-ed-p, .pc-ed-s, .pc-pvw { position: static }
+}
+@media (max-width: 900px) {
+  .pc-hero .cn { display: none }
+  .pc-env { display: none }
+  .pc-ph { flex-direction: column; align-items: stretch }
+}
+@media (max-width: 560px) {
+  .pc-hero { padding: 20px }
+  .pc-pv { grid-template-columns: 1fr }
+  .pc-pv-sb { flex-direction: row; flex-wrap: wrap; align-items: center }
+  .pc-pv-b { width: 100%; margin-bottom: 4px }
+  .pc-opts, .pc-kv { grid-template-columns: 1fr }
+  .pc-tip { padding-right: var(--pad) }
+  .pc-tip .cn { display: none }
+  .pc-pb > div { grid-template-columns: minmax(0, 1fr) auto; }
+  .pc-pb-t { grid-column: 1 / -1; grid-row: 2 }
+  .pc-li-r .bdg + .bdg { display: none }
+  .pc-oh { padding: 18px }
+}
+.pc-inf { font: 600 16px/1 system-ui, sans-serif !important; color: var(--f-green) !important }
+.pc-plans { padding-top: 10px }
+.g3r.pc-br { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) }
+@media (max-width: 1180px) { .g3r.pc-br { grid-template-columns: 1fr } }
+.pc-pv { grid-template-columns: 136px minmax(0, 1fr) }
+.pc-pv-k .st-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+@media (max-width: 560px) { .pc-pv { grid-template-columns: 1fr } }
+.pc-fbar .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none }
+.pc-fbar .seg button { flex: none }
+@media (max-width: 760px) { .pc-tbl .hm { display: none } .pc-tbl td:first-child { min-width: 0 } }

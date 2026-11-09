@@ -181,3 +181,6 @@ export function BrandMark({ on = 'light', size = 40 }: { on?: 'light' | 'dark'; 
   if (src) return <img className="logo-i" src={src} alt={b.name} style={{ width: size, height: size }} />
   return <span className="logo-m" style={{ width: size, height: size, fontSize: Math.round(size * 0.48) }} aria-hidden="true">{(b.name.trim()[0] || 'S').toUpperCase()}<i /></span>
 }
+
+/** The brand (product) name as text – use in copy instead of a hard-coded name. */
+export function BrandName() { return <>{useBrand().name}</> }

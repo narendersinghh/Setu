@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { Badge, Btn, Empty, Icon, Modal, Spinner, confirmDo, toast } from '@/components/ui'
+import { BrandName, useBrand } from '@/lib/theme'
 
 export interface Row {
   id: number; position: number; name: string; category: string; city: string; phone: string; phone_source: string; email: string; website: string
@@ -118,7 +119,7 @@ export function InitModal({ n, onClose, onStart }: { n: number; onClose: () => v
   const a = auto ?? !!d?.auto_contact
   return <Modal open onClose={onClose} title="Initiate Process" ic="zap" c="orange" footer={<><Btn onClick={onClose}>Cancel</Btn><Btn v="y" ic="play" disabled={!d} onClick={() => onStart({ pw: pw || d?.website[0]?.id || 0, pn: pn || d?.noweb[0]?.id || 0, auto: a })}>Start</Btn></>}>
     {!d ? <Spinner /> : <>
-      <p className="muted">For each selected business Setu will: audit the website and Google Maps listing → research &amp; write the AI report → design the PDF{a && ' → send it by Email & WhatsApp'}. You can watch progress or stop it any time from <b>Activity</b>.</p>
+      <p className="muted">For each selected business <BrandName /> will: audit the website and Google Maps listing → research &amp; write the AI report → design the PDF{a && ' → send it by Email & WhatsApp'}. You can watch progress or stop it any time from <b>Activity</b>.</p>
       <p className="sm">{n.toLocaleString('en-IN')} business{n === 1 ? '' : 'es'} selected.</p>
       <label>Report prompt – business has a website<select value={pw || d.website[0]?.id || ''} onChange={e => setPw(Number(e.target.value))}>{d.website.map(p => <option key={p.id} value={p.id}>{p.name}{p.is_active ? ' (in use)' : ''}</option>)}</select></label>
       <label>Report prompt – no website<select value={pn || d.noweb[0]?.id || ''} onChange={e => setPn(Number(e.target.value))}>{d.noweb.map(p => <option key={p.id} value={p.id}>{p.name}{p.is_active ? ' (in use)' : ''}</option>)}</select></label>

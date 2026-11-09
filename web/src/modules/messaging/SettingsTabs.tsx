@@ -6,6 +6,7 @@ import { Btn, Card, Spinner, toast } from '@/components/ui'
 import { SettingsForm, FieldDef, useSettings } from '@/components/SettingsForm'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMessagingMeta } from './LeadChannels'
+import { BrandName, useBrand } from '@/lib/theme'
 
 const o = (a: string[]) => Object.fromEntries(a.map(x => [x, x]))
 
@@ -18,6 +19,7 @@ async function run(url: string, body: object = {}) {
 }
 
 export function EmailTab() {
+  const brand = useBrand()
   const meta = useMessagingMeta()
   const me = useMe()
   const s = useSettings()
@@ -28,7 +30,7 @@ export function EmailTab() {
   const apis = Object.fromEntries(meta.data.email_apis.map(a => [a.key, a.name]))
   const presets = Object.fromEntries(meta.data.smtp_presets.map(p => [p.key, p.name]))
   const f: FieldDef[] = [
-    ['mail_transport', 'How should Setu send email?', 'select', { default: 'Default mailer – works without any set-up', smtp: 'My own mailbox (SMTP) – Gmail, Zoho, Outlook, Hostinger, cPanel…', api: 'Email service API – Brevo, SendGrid, Mailjet…' }],
+    ['mail_transport', 'How should ' + brand.name + ' send email?', 'select', { default: 'Default mailer – works without any set-up', smtp: 'My own mailbox (SMTP) – Gmail, Zoho, Outlook, Hostinger, cPanel…', api: 'Email service API – Brevo, SendGrid, Mailjet…' }],
     ['mail_api', 'Email service', 'select', { '': 'Choose…', ...apis }, '', 'mail_transport=api'],
     ['mail_api_key', 'API key', 'secret', null, 'The key of the service chosen above – see "Which option?" below for where to get it, then verify your From email or domain in that account.', 'mail_transport=api'],
     ['mail_api_secret', 'Secret key (Mailjet shows it next to the API key)', 'secret', null, '', 'mail_transport=api;mail_api=mailjet'],
@@ -44,7 +46,7 @@ export function EmailTab() {
     ['smtp_secure', 'Encryption', 'select', { ssl: 'SSL (465)', tls: 'TLS / STARTTLS (587)', none: 'None' }, '', 'mail_transport=smtp;smtp_provider=custom,ses,cpanel'],
     ['reply_to', 'Reply-to email (optional)', 'email'],
     ['bcc_email', 'BCC a copy to (optional)', 'email'],
-    ['imap_on', 'Detect replies by reading your inbox (IMAP)', 'select', { '0': 'Off', '1': 'On – mark leads as replied automatically' }, 'Setu checks the inbox every 2 minutes.'],
+    ['imap_on', 'Detect replies by reading your inbox (IMAP)', 'select', { '0': 'Off', '1': 'On – mark leads as replied automatically' }, <><BrandName /> checks the inbox every 2 minutes.</>],
     ['imap_host', 'IMAP server', 'text', null, 'e.g. imap.hostinger.com, imap.gmail.com', 'imap_on=1'],
     ['imap_port', 'IMAP port', 'text', null, '993 = SSL; other ports use STARTTLS when the server offers it.', 'imap_on=1'],
     ['imap_user', 'IMAP login', 'text', null, 'Leave empty to use the mailbox login.', 'imap_on=1'],
@@ -134,7 +136,7 @@ export function VoiceTab() {
     <Card title="Test & Sarvam AI setup" ic="mic" c="pink">
       <form className="row nw" onSubmit={test}><input value={to} onChange={e => setTo(e.target.value)} placeholder="Your phone number (+91…)" required style={{ margin: 0 }} /><Btn type="submit" ic="phone" busy={busy} disabled={!m.voice_ready}>Call me</Btn></form>
       <ol className="ol">
-        <li>Sign in at sarvam.ai → <b>Samvaad / Voice agents</b> and build your agent (language, voice, script). Use variables like <code>{'{{business_name}}'}</code>, <code>{'{{contact_name}}'}</code>, <code>{'{{task}}'}</code> – Setu sends them.</li>
+        <li>Sign in at sarvam.ai → <b>Samvaad / Voice agents</b> and build your agent (language, voice, script). Use variables like <code>{'{{business_name}}'}</code>, <code>{'{{contact_name}}'}</code>, <code>{'{{task}}'}</code> – <BrandName /> sends them.</li>
         <li>Connect a phone number (telephony connection) to the agent.</li>
         <li>Copy the Org ID, Workspace ID, Agent (app) ID, version, Connection ID and agent phone number into the fields above, plus a workspace API key.</li>
         <li>Call results (status, transcript, summary) come back automatically to each lead's journey. Retell posts to one webhook for all calls: set it to <code>{m.webhooks.call}</code>.</li>

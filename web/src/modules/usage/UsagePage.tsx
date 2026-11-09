@@ -4,7 +4,10 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { ago, num } from '@/lib/format'
-import { Alert, Badge, Btn, Card, Field, Hi, Icon, Kpi, Spinner, toast, useInterval, usePageTitle } from '@/components/ui'
+import { Alert, Badge, BarChart, Btn, Card, EmptyState, Field, Hi, Icon, Kpi, Skeleton, Spinner, toast, useInterval, usePageTitle } from '@/components/ui'
+import { CoffeeBot, PiggyBank, SleepyCat } from '@/components/Cartoons'
+import { useBrand } from '@/lib/theme'
+import { LimitGrid, StatusBadge, price, statusText, useBilling } from '@/modules/billing/shared'
 
 interface Row {
   key: string; name: string; kind: string; unit: string; price: number; free: number; per: 'month' | 'day'; url: string; note: string
@@ -33,8 +36,27 @@ export default function UsagePage({ embedded }: { embedded?: boolean }) {
 }
 
 function UsageTitled() {
-  usePageTitle('API Usage & Costs', 'Every API Setu can use – status, free limits, usage and estimated cost')
-  return <Usage />
+  const brand = useBrand()
+  usePageTitle('API Usage & Costs', 'Your plan limits, plus every API ' + brand.name + ' can use – status, free limits, usage and estimated cost')
+  return <><PlanUsage /><Usage /></>
+}
+
+/** Top section: the organisation's plan (set up in the platform console), its status and every limit with used / limit. */
+function PlanUsage() {
+  const b = useBilling()
+  if (b.loading || !b.data) return <div className="upl"><div className="card dk"><Skeleton h={150} /></div><div className="card"><Skeleton h={150} /></div></div>
+  const d = b.data
+  const up = d.status !== 'active' || d.plans.some(p => p.price_month > (d.plan?.price_month || 0))
+  return <div className="upl">
+    <div className={'card dk upl-s ' + (d.status === 'expired' ? 'c-rose' : d.status === 'trial' ? 'c-amber' : 'c-green')}>
+      <span className="eyebrow mb0"><Icon n="crown" />Your plan</span>
+      <h2>{d.plan?.name || 'No plan'} <StatusBadge status={d.status} trial={d.trial_ends_at} /></h2>
+      <p>{statusText(d)}{d.plan && d.plan.price_month > 0 ? ' List price ' + price(d.plan.price_month, d.plan.currency) + ' / month.' : ''}</p>
+      <div className="row"><Link className={'btn ' + (up ? 'btn-p' : '')} to="/billing"><Icon n="rocket" /><span>{up ? 'Upgrade plan' : 'Plan & billing'}</span></Link></div>
+      <PiggyBank w={150} className="upl-art" />
+    </div>
+    <Card title="Plan limits this period" ic="activity" c="teal" actions={<span className="muted sm">Used / limit · remaining</span>}><LimitGrid limits={d.limits} /></Card>
+  </div>
 }
 
 function Usage() {
@@ -67,8 +89,8 @@ function Usage() {
     </div>
     {d.warn.length > 0 && <Alert t="warn"><b>Heads-up:</b> at the current pace you will go over the free limit for {d.warn.join(', ')} this month.</Alert>}
 
-    <div className="card-h"><h3><Hi n="activity" c="blue" />Services in use</h3><span className="muted sm">{d.month} · resets on the 1st</span></div>
-    {!inuse.length ? <div className="card"><div className="empty sm"><Icon n="activity" /><p>No API is connected or used yet.</p></div></div> :
+    <div className="sech"><h3><Hi n="plug" c="blue" />Services in use</h3><span className="muted sm">{d.month} · resets on the 1st</span></div>
+    {!inuse.length ? <div className="card"><EmptyState art={<CoffeeBot />} title="No API connected yet">Connect AI, email, WhatsApp or Maps in Settings – usage and estimated costs show up here.</EmptyState></div> :
       <div className="ug">{inuse.map(r => {
         const tok = r.unit === 'tokens'
         const pc = r.free > 0 ? Math.min(100, Math.round(r.used / r.free * 100)) : null
@@ -113,24 +135,14 @@ function Usage() {
 }
 
 function Chart({ daily }: { daily: Data['daily'] }) {
-  const mx = Math.max(0.01, ...daily.map(x => x.cost))
-  const mn = Math.max(1, ...daily.map(x => x.calls))
-  const H = 170
-  return <div className="card mt">
-    <div className="card-h"><h3><Hi n="activity" c="violet" />Daily cost &amp; calls – last 30 days</h3>
-      <div className="row sm muted"><span className="row nw" style={{ gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: 3, background: '#7C5CF0', display: 'inline-block' }} />Cost (USD)</span><span className="row nw" style={{ gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: 10, background: '#F97316', display: 'inline-block' }} />Calls</span></div></div>
-    <div style={{ position: 'relative', height: H + 24, paddingLeft: 44 }} role="img" aria-label="Daily API usage, last 30 days">
-      {[0, .5, 1].map(g => <div key={g} style={{ position: 'absolute', left: 44, right: 0, bottom: 24 + g * H, borderTop: '1px solid #EEF0F5' }}><span style={{ position: 'absolute', left: -44, top: -8, fontSize: 10, color: '#98A0B3' }}>{usd(mx * g)}</span></div>)}
-      <div style={{ position: 'absolute', left: 44, right: 0, top: 0, height: H, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-        {daily.map(x => <div key={x.day} title={shortDay(x.day) + ': ' + usd(x.cost) + ' · ' + x.calls + ' calls'} style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', alignItems: 'flex-end' }}>
-          <div style={{ width: '100%', height: x.cost > 0 ? Math.max(2, x.cost / mx * (H - 14)) : 0, borderRadius: 4, background: 'linear-gradient(#8B5CF6,#6366F1)' }} />
-          {x.calls > 0 && <span style={{ position: 'absolute', left: '50%', bottom: x.calls / mn * (H - 14), width: 6, height: 6, marginLeft: -3, marginBottom: -3, borderRadius: 6, background: '#F97316', opacity: .85 }} />}
-        </div>)}
-      </div>
-      <div style={{ position: 'absolute', left: 44, right: 0, bottom: 0, height: 20, display: 'flex', gap: 4 }}>
-        {daily.map((x, i) => <span key={x.day} style={{ flex: 1, textAlign: 'center', fontSize: 10.5, color: '#98A0B3', whiteSpace: 'nowrap', overflow: 'visible' }}>{i % 5 === 0 || i === 29 ? shortDay(x.day) : ''}</span>)}
-      </div>
-    </div>
+  const [m, setM] = useState<'cost' | 'calls'>('cost')
+  const total = daily.reduce((a, x) => a + (m === 'cost' ? x.cost : x.calls), 0)
+  return <div className="card">
+    <div className="ch-h"><div><h3><Hi n="activity" c="violet" />Daily {m === 'cost' ? 'cost' : 'API calls'} – last 30 days</h3>
+      <div className="ch-v"><b>{m === 'cost' ? usd(total) : num(total)}</b><span>{m === 'cost' ? 'estimated, before free tiers' : 'calls in 30 days'}</span></div></div>
+      <div className="seg" role="group" aria-label="Metric"><button type="button" className={m === 'cost' ? 'on' : ''} onClick={() => setM('cost')}>Cost</button><button type="button" className={m === 'calls' ? 'on' : ''} onClick={() => setM('calls')}>Calls</button></div></div>
+    {!daily.some(x => x.cost > 0 || x.calls > 0) ? <EmptyState art={<SleepyCat />} title="No API usage in the last 30 days">Costs and calls show up here day by day once your team uses AI, email, WhatsApp or Maps.</EmptyState> : <BarChart c={m === 'cost' ? 'violet' : 'orange'} height={190} every={5} fmt={m === 'cost' ? (v => usd(v)) : (v => num(v))}
+      data={daily.map(x => ({ label: shortDay(x.day), value: m === 'cost' ? x.cost : x.calls, hint: shortDay(x.day) + ' · ' + (m === 'cost' ? x.calls + ' calls' : usd(x.cost)) }))} />}
   </div>
 }
 
@@ -198,8 +210,9 @@ function PriceEditor({ d, rows }: { d: Data; rows: PRow[] }) {
 
 /** Settings → System → API usage & costs. */
 export function UsageTab() {
+  const brand = useBrand()
   return <>
-    <p className="sm muted mt0">Every API Setu can use – status, free limits, usage and estimated cost. <Link className="lnk" to="/usage">Open full page</Link></p>
+    <p className="sm muted mt0">Every API {brand.name} can use – status, free limits, usage and estimated cost. <Link className="lnk" to="/usage">Open full page</Link></p>
     <UsagePage embedded />
   </>
 }

@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { FieldDef, SettingsForm } from '@/components/SettingsForm'
 import { Alert, Badge, Btn, Hi, Sec, act, confirmDo, toast } from '@/components/ui'
 import { copy } from './api'
+import { BrandName, useBrand } from '@/lib/theme'
 
 const yn = { '1': 'Yes', '0': 'No' }
 
@@ -64,7 +65,7 @@ export default function AppointmentsSettings() {
     <div className="row" style={{ marginBottom: 10 }}>
       {g?.ready ? <Btn sm v="r" onClick={disconnect}>Disconnect</Btn> : g?.has_client ? <Btn v="p" sm ic="link" onClick={connect}>Connect Google Calendar</Btn> : <span className="muted sm">Save your Client ID and Client secret above, then connect.</span>}
     </div>
-    <p className="sm muted mt0"><b>Best of both:</b> bookings are managed here in Setu (pipeline, reminders, automations), and – when connected – each booking is added to your Google Calendar with a Meet link, and your busy times in Google block those slots on the booking page.</p>
+    <p className="sm muted mt0"><b>Best of both:</b> bookings are managed here in <BrandName /> (pipeline, reminders, automations), and – when connected – each booking is added to your Google Calendar with a Meet link, and your busy times in Google block those slots on the booking page.</p>
     <ol className="ol">
       <li>console.cloud.google.com → APIs &amp; Services → <b>Enable "Google Calendar API"</b>.</li>
       <li><b>OAuth consent screen</b> → External → add your email as a test user (or publish the app).</li>

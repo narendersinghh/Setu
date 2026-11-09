@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 import { Badge, Btn, Card, Empty, Field, Hi, Icon, Spinner, Tabs, confirmDo, toast, usePageTitle } from '@/components/ui'
 import { Asset, AssetsResp, Prompt, copyText } from './common'
+import { BrandName, useBrand } from '@/lib/theme'
 
 interface TypesResp { types: { key: string; label: string; help: string }[]; vars: string[]; ai_vars: string[] }
 
@@ -73,7 +74,7 @@ function PromptEditor({ t, types, id, go }: { t: string; types: TypesResp; id: s
       <Card title="Placeholders">
         <p className="hint mt0">Click to copy. They are filled in for every business.</p>
         <div className="vars">{vars.map(v => <code key={v} onClick={() => copyText('{{' + v + '}}')}>{'{{' + v + '}}'}</code>)}</div>
-        {isAI ? <p className="hint mt">Your prompt guides the tone and focus. The AI always answers in a fixed structure (summary, market stats with sources, findings, opportunity, plan, quick wins). Setu then designs the landscape PDF – cover, score gauges, charts, competitor graphs, illustrations and your branding – automatically.</p>
+        {isAI ? <p className="hint mt">Your prompt guides the tone and focus. The AI always answers in a fixed structure (summary, market stats with sources, findings, opportunity, plan, quick wins). <BrandName /> then designs the landscape PDF – cover, score gauges, charts, competitor graphs, illustrations and your branding – automatically.</p>
           : <p className="hint mt">Keep the first message simple – no fees. The PDF is attached to the email and WhatsApp message itself, so no link is needed.</p>}
       </Card>
     </div>

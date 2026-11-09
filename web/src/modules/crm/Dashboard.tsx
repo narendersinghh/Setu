@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { ago, money, num } from '@/lib/format'
-import { AreaChart, Avatar, Donut, EmptyState, Hi, Icon, Point, Progress, Skeleton, Trend, usePageTitle } from '@/components/ui'
+import { AreaChart, Avatar, Donut, EmptyState, Hi, Icon, Point, Progress, Skeleton, Sparkline, Trend, usePageTitle } from '@/components/ui'
+import { CalendarJuggler, CoffeeBot, RocketRider, SleepyCat, Trophy } from '@/components/Cartoons'
 import { CC, EVIC, SOURCES, STATUSES, telHref } from './common'
 
 interface Dash {
@@ -54,7 +55,7 @@ function Loading() {
   return <>
     <div className="dh"><div><Skeleton h={30} w={320} /><Skeleton h={14} w={220} className="mt" /></div></div>
     <div className="kpis">{[0, 1, 2, 3].map(i => <div key={i} className="kpi"><Skeleton h={40} w={40} r={40} /><Skeleton h={28} w="60%" className="mt" /><Skeleton h={12} w="80%" className="mt" /></div>)}</div>
-    <div className="dg"><div className="card"><Skeleton h={260} /></div><div className="card"><Skeleton h={260} /></div></div>
+    <div className="dg eq"><div className="card"><Skeleton h={260} /></div><div className="card"><Skeleton h={260} /></div></div>
   </>
 }
 
@@ -86,24 +87,27 @@ export default function Dashboard() {
   const srcMax = Math.max(1, ...d.sources.map(s => s.n))
   const ringC = 2 * Math.PI * 33
 
+  const spark = series ? series.map(x => x.value) : []
+  const cum = spark.reduce<number[]>((a, v) => { a.push((a[a.length - 1] ?? Math.max(0, k.total - inRange)) + v); return a }, [])
   return <>
-    <div className="dh">
-      <div><h2>{hi}, <span>{me.user.name.split(' ')[0]}</span></h2>
+    <div className="greet">
+      <div className="greet-c">{k.won > 0 && k.due === 0 ? <Trophy w={116} /> : <RocketRider w={116} />}
+      <div className="dh"><div><h2>{hi}, <span>{me.user.name.split(' ')[0]}</span></h2>
         <p>{k.due ? <Link to="/leads?fu=due" className="chipx hot"><Icon n="flame" />{k.due} follow-up{k.due > 1 ? 's' : ''} due</Link> : <span className="chipx c-green"><Icon n="check" />No follow-ups due</span>}
           {d.appts.length > 0 && <Link to="/appointments" className="chipx c-teal"><Icon n="cal" />Next meeting {dayTm(d.appts[0].start_at)}</Link>}
-          {k.today > 0 && <span className="chipx c-indigo"><Icon n="zap" />{k.today} new today</span>}</p></div>
+          {k.today > 0 && <span className="chipx c-indigo"><Icon n="zap" />{k.today} new today</span>}</p></div></div></div>
       <div className="pha"><Link className="btn" to="/appointments?add=1"><Icon n="cal" />Book meeting</Link>{d.pro && <Link className="btn" to="/scraper?new=1"><Icon n="map" />Map search</Link>}<Link className="btn btn-p" to="/leads/new"><Icon n="plus" />Add lead</Link></div>
     </div>
 
     <div className="kpis">
       <Link to="/leads" className="kpi hot"><div className="kpi-h"><span className="kpi-l">{me.user.role === 'sales' ? 'My leads' : 'Total leads'}</span><Hi n="users" c="indigo" /></div>
-        <b className="kpi-v">{num(k.total)}</b><span className="kpi-f"><Trend v={growth} label="this week" /></span></Link>
-      <Link to="/leads?status=new" className="kpi"><div className="kpi-h"><span className="kpi-l">New – need first touch</span><Hi n="zap" c="sky" /></div>
-        <b className="kpi-v">{num(k.new)}</b><span className="kpi-f"><span className="trend flat">+{k.week} this week</span></span></Link>
-      <Link to="/leads?fu=due" className="kpi"><div className="kpi-h"><span className="kpi-l">Follow-ups due</span><Hi n="clock" c="orange" /></div>
-        <b className="kpi-v">{num(k.due)}</b><span className="kpi-f">{k.due ? <span className="trend dn">Act today</span> : <span className="trend up"><Icon n="check" />All caught up</span>}</span></Link>
-      <Link to="/leads?status=won" className="kpi"><div className="kpi-h"><span className="kpi-l">Won</span><Hi n="target" c="green" /></div>
-        <b className="kpi-v">{money(k.won_value, sym)}</b><span className="kpi-f"><span className="trend up">{k.won} deal{k.won === 1 ? '' : 's'}</span>{money(k.pipeline, sym)} open</span></Link>
+        <div className="kpi-m"><b className="kpi-v">{num(k.total)}</b>{cum.length > 1 && <Sparkline data={cum} w={92} h={34} />}</div><span className="kpi-f"><Trend v={growth} label="this week" /></span></Link>
+      <Link to="/leads?status=new" className="kpi c-sky"><div className="kpi-h"><span className="kpi-l">New – need first touch</span><Hi n="zap" c="sky" /></div>
+        <div className="kpi-m"><b className="kpi-v">{num(k.new)}</b>{spark.length > 1 && <Sparkline data={spark} w={92} h={34} />}</div><span className="kpi-f"><span className="trend flat">+{k.week} this week</span></span></Link>
+      <Link to="/leads?fu=due" className="kpi c-orange"><div className="kpi-h"><span className="kpi-l">Follow-ups due</span><Hi n="clock" c="orange" /></div>
+        <div className="kpi-m"><b className="kpi-v">{num(k.due)}</b></div><span className="kpi-f">{k.due ? <span className="trend dn">Act today</span> : <span className="trend up"><Icon n="check" />All caught up</span>}</span></Link>
+      <Link to="/leads?status=won" className="kpi tone-ok"><div className="kpi-h"><span className="kpi-l">Won</span><Hi n="target" c="green" /></div>
+        <div className="kpi-m"><b className="kpi-v">{money(k.won_value, sym)}</b></div><span className="kpi-f"><span className="trend up">{k.won} deal{k.won === 1 ? '' : 's'}</span>{money(k.pipeline, sym)} open</span></Link>
     </div>
 
     <div className="dg">
@@ -111,7 +115,7 @@ export default function Dashboard() {
         <div className="ch-h"><div><h3><Hi n="activity" c="indigo" />Leads over time</h3>
           <div className="ch-v"><b>{num(inRange)}</b><span>new leads · last {series?.length || DAYS} days</span>{series && series.length > 3 && <Trend v={trend} label="vs previous" />}</div></div>
           <Link className="lnk sm" to="/leads">All leads <Icon n="arrowR" /></Link></div>
-        {!series ? <Skeleton h={220} /> : inRange === 0 ? <EmptyState ic="users" title="No new leads yet" action={<Link className="btn btn-p btn-sm" to="/leads/new"><Icon n="plus" />Add lead</Link>}>New leads from forms, ads and your team show up here day by day.</EmptyState>
+        {!series ? <Skeleton h={220} /> : inRange === 0 ? <EmptyState art={<RocketRider />} title="No new leads yet" action={<Link className="btn btn-p btn-sm" to="/leads/new"><Icon n="plus" />Add lead</Link>}>New leads from forms, ads and your team show up here day by day.</EmptyState>
           : <AreaChart data={series} height={230} />}
       </div>
       <div className="card">
@@ -122,10 +126,10 @@ export default function Dashboard() {
       </div>
     </div>
 
-    <div className="dg">
+    <div className="dg eq">
       <div className="card">
         <div className="ch-h"><h3><Hi n="bell" c="violet" />Recent activity</h3><Link className="lnk sm" to="/activity">View all <Icon n="arrowR" /></Link></div>
-        {!d.events.length ? <EmptyState ic="activity" title="No activity yet">Add a lead to get started – calls, emails and status changes appear here.</EmptyState> :
+        {!d.events.length ? <EmptyState art={<SleepyCat />} title="All quiet for now">Add a lead to get started – calls, emails and status changes appear here.</EmptyState> :
           <ul className="feed2">{d.events.map(x => { const nm = x.contact_name || x.name; return <li key={x.id}>
             <Avatar name={nm} size={36} />
             <div className="fe-b"><Link to={'/leads/' + x.lead_id}><b>{nm}</b></Link><p>{x.message}</p></div>
@@ -133,9 +137,9 @@ export default function Dashboard() {
             <small>{ago(x.created_at)}</small></li> })}</ul>}
       </div>
       <div className="col">
-        <div className="card agl">
+        <div className="card agl dk c-teal">
           <div className="ch-h"><h3><Hi n="cal" c="teal" />Today &amp; next</h3><Link className="lnk sm" to="/appointments">Calendar <Icon n="arrowR" /></Link></div>
-          {!d.appts.length && !d.follow_ups.length && <div className="empty sm"><Icon n="cal" /><p>Nothing in the next 24 hours.</p></div>}
+          {!d.appts.length && !d.follow_ups.length && <div className="empty sm agl-e"><CalendarJuggler w={150} /><p>Nothing in the next 24 hours – enjoy the calm.</p></div>}
           {d.appts.slice(0, 3).map(a => <div key={'a' + a.id} className="li"><span className="when c-teal"><b>{dd(a.start_at)}</b><small>{mon(a.start_at)}</small></span>
             <div className="grow"><b>{a.lead_id ? <Link to={'/leads/' + a.lead_id}>{a.contact_name || a.name}</Link> : a.title}</b><small>{dayTm(a.start_at)} · {a.title}</small></div>
             {a.meet_link ? <a className="btn btn-xs btn-g" href={a.meet_link} target="_blank" rel="noopener noreferrer">Join</a> : <span className="bdg c-teal">Meeting</span>}</div>)}
@@ -160,6 +164,7 @@ export default function Dashboard() {
 
     {checks.length > 0 && done < checks.length && <div className="card">
       <div className="setup">
+        <CoffeeBot w={110} className="setup-art" />
         <div className="ring"><svg width="74" height="74" viewBox="0 0 74 74"><circle className="r0" cx="37" cy="37" r="33" /><circle className="r1" cx="37" cy="37" r="33" strokeDasharray={`${(done / checks.length) * ringC} ${ringC}`} /></svg><b>{Math.round((done / checks.length) * 100)}%</b></div>
         <div className="grow"><h3>Finish setting up</h3><p className="muted sm mb0">{done} of {checks.length} done – a few minutes here pays off every day.</p></div>
       </div>

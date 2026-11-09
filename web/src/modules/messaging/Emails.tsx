@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import { Alert, Btn, Empty, Field, Icon, IconBtn, Modal, Spinner, toast, usePageTitle, useInterval } from '@/components/ui'
 import { chBadge } from './LeadChannels'
+import { BrandName, useBrand } from '@/lib/theme'
 
 interface Conv { id: number; name: string; contact_name: string; email: string; at: string; un: number; ins: number; n: number; last_dir: string; last_subject: string; last_body: string }
 interface ListRes { conversations: Conv[]; total: number; unread: number; ready: boolean; imap: boolean; imap_last: number; imap_error: string; can_settings: boolean }
@@ -21,7 +22,8 @@ function when(ts: string) {
 }
 
 export default function Emails() {
-  usePageTitle('Emails', 'Every email with your leads – read replies and answer without leaving Setu')
+  const brand = useBrand()
+  usePageTitle('Emails', 'Every email with your leads – read replies and answer without leaving ' + brand.name)
   const [sp, setSp] = useSearchParams()
   const lead = Number(sp.get('lead') || 0), f = sp.get('f') || '', q = sp.get('q') || ''
   const [search, setSearch] = useState(q)
@@ -49,7 +51,7 @@ export default function Emails() {
   const setLink = can('settings') ? <Link className="lnk" to="/settings/email">Settings → Email</Link> : <>Settings → Email</>
   return <>
     {d && !d.ready && <Alert t="warn"><b>Email is not set up yet.</b> {d.can_settings ? <><Link className="lnk" to="/settings/email">Connect your email service or mailbox</Link> to send from here.</> : 'Ask your admin to connect email in Settings.'}</Alert>}
-    {d && d.ready && !d.imap && <Alert t="info"><b>Replies are not coming in yet.</b> Turn on <i>Detect replies by reading your inbox (IMAP)</i> in {setLink} with the mailbox your leads reply to (your From or Reply-to address). Setu then brings every reply here automatically.</Alert>}
+    {d && d.ready && !d.imap && <Alert t="info"><b>Replies are not coming in yet.</b> Turn on <i>Detect replies by reading your inbox (IMAP)</i> in {setLink} with the mailbox your leads reply to (your From or Reply-to address). <BrandName /> then brings every reply here automatically.</Alert>}
     {d && d.imap && d.imap_error && <Alert t="err">Inbox check failed: {d.imap_error}</Alert>}
     <div className={'ib-w' + (lead ? ' has-t' : '')}>
       <div className="card p0 ib-l">

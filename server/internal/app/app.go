@@ -30,6 +30,9 @@ type App struct {
 	api chi.Router
 
 	orgs sync.Map // host → *orgEntry
+	// BrandName is the white-label name of this installation (set by core; default "Setu").
+	BrandName func(ctx context.Context) string
+
 	// SystemMail sends a platform email (password reset, notices) with the platform mailer; set by messaging.
 	SystemMail func(ctx context.Context, to, subject, html string) error
 
@@ -45,7 +48,7 @@ type HookFn func(ctx context.Context, tx pgx.Tx, orgID, leadID int64, data map[s
 type SeedFn func(ctx context.Context, tx pgx.Tx, orgID int64, s *settings.Store) error
 
 func New(cfg *config.Config, d *db.DB) *App {
-	a := &App{Cfg: cfg, DB: d, Box: secure.NewBox(cfg.MasterKey), hooks: map[string][]HookFn{}}
+	a := &App{Cfg: cfg, DB: d, Box: secure.NewBox(cfg.MasterKey), hooks: map[string][]HookFn{}, BrandName: func(context.Context) string { return "Setu" }}
 	Default = a
 	a.Jobs = jobs.New(d, cfg.OrgJobCap)
 	r := chi.NewRouter()

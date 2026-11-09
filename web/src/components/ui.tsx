@@ -1,6 +1,6 @@
 // Shared UI kit – v1 markup and class names (styles/app.css) restyled by the v2 design tokens,
 // plus v2 components: Avatar, Trend, Progress, Donut, AreaChart, Skeleton, EmptyState.
-import { ReactNode, useEffect, useState, MouseEvent, InputHTMLAttributes, useRef, useId, useMemo, PointerEvent } from 'react'
+import React, { ReactNode, useEffect, useState, MouseEvent, InputHTMLAttributes, useRef, useId, useMemo, PointerEvent, KeyboardEvent as KEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ICONS } from './icons'
 import { brandName } from '@/lib/theme'
@@ -18,9 +18,13 @@ export function Badge({ c = 'gray', dot, children }: { c?: string; dot?: boolean
   return <span className={'bdg bdg-' + c + (dot ? ' bdg-dot' : '')}>{children}</span>
 }
 
-export function Kpi({ label, value, ic, c, foot, to }: { label: string; value: ReactNode; ic: string; c: string; foot?: ReactNode; to?: string }) {
-  const inner = <><span className="st-i"><Icon n={ic} /></span><span className="st-l">{label}</span><b className="st-v">{value}</b>{foot !== undefined && foot !== '' && <small className="st-f">{foot}</small>}</>
-  return to ? <Link to={to} className={'stat st-' + c}>{inner}</Link> : <div className={'stat st-' + c}>{inner}</div>
+/** KPI card – a dark "island" with the colour family as accent. Optional sparkline and tone (pri = deep brand, ok = deep green). */
+export function Kpi({ label, value, ic, c, foot, to, spark, tone }: { label: string; value: ReactNode; ic: string; c: string; foot?: ReactNode; to?: string; spark?: number[]; tone?: 'pri' | 'ok' }) {
+  const inner = <><span className="st-i"><Icon n={ic} /></span><span className="st-l">{label}</span><b className="st-v">{value}</b>
+    {spark && spark.length > 1 && <span className="st-sp"><Sparkline data={spark} w={84} h={30} /></span>}
+    {foot !== undefined && foot !== '' && <small className="st-f">{foot}</small>}</>
+  const cls = 'stat st-' + c + (tone ? ' tone-' + tone : '')
+  return to ? <Link to={to} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>
 }
 
 export function Card({ title, ic, c = 'indigo', actions, children, p0, className = '' }: { title?: ReactNode; ic?: string; c?: string; actions?: ReactNode; children: ReactNode; p0?: boolean; className?: string }) {
@@ -86,6 +90,36 @@ export function Pager({ page, pages, total, label = 'records', onPage }: { page:
 
 export function Switch({ checked, onChange, disabled, title }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; title?: string }) {
   return <label className="sw" title={title}><input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} /><i /></label>
+}
+
+/** Tag-style editor for a list of values (e.g. dropdown options). `value` stays a newline-separated string,
+ *  exactly what the server stores; chips can be removed with ×, new ones are added with the button or Enter. */
+export function ChipsInput({ value, onChange, placeholder = 'Add an option', addLabel = 'Add', disabled, label }: { value: string; onChange: (v: string) => void; placeholder?: string; addLabel?: string; disabled?: boolean; label?: string }) {
+  const items = (value || '').split('\n').map(x => x.trim()).filter(Boolean)
+  const [txt, setTxt] = useState('')
+  const [dup, setDup] = useState(false)
+  const add = () => {
+    const parts = txt.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
+    if (!parts.length) return
+    const next = [...items]
+    let clash = false
+    parts.forEach(x => { if (next.some(y => y.toLowerCase() === x.toLowerCase())) clash = true; else next.push(x) })
+    setDup(clash && next.length === items.length)
+    onChange(next.join('\n')); setTxt('')
+  }
+  const del = (i: number) => onChange(items.filter((_, j) => j !== i).join('\n'))
+  const key = (e: KEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); add() }
+    else if (e.key === 'Backspace' && !txt && items.length) del(items.length - 1)
+  }
+  return <div className={'chin' + (disabled ? ' off' : '')} role="group" aria-label={label || 'Options'}>
+    {items.length > 0 ? <ul className="chin-l">{items.map((x, i) => <li key={x + i} className="chin-c"><span>{x}</span>
+      {!disabled && <button type="button" onClick={() => del(i)} aria-label={'Remove ' + x} title="Remove"><Icon n="x" /></button>}</li>)}</ul>
+      : <span className="chin-e">No options yet</span>}
+    {!disabled && <div className="chin-a"><input value={txt} placeholder={placeholder} aria-label={placeholder} onChange={e => { setTxt(e.target.value); setDup(false) }} onKeyDown={key} />
+      <button type="button" className="btn btn-sm" onClick={add} disabled={!txt.trim()}><Icon n="plus" /><span>{addLabel}</span></button></div>}
+    {dup && <small className="chin-w">That option is already in the list.</small>}
+  </div>
 }
 
 /** Labelled input row (v1 forms: <label>Text<input></label>). */
@@ -187,25 +221,32 @@ export function Donut({ data, size = 168, thick = 20, center, legend = true }: {
   const total = data.reduce((a, b) => a + Math.max(0, b.value), 0)
   const r = (size - thick) / 2, C = 2 * Math.PI * r
   const gap = data.filter(d => d.value > 0).length > 1 ? Math.min(6, C * 0.012) : 0
+  const [hov, setHov] = useState<string | null>(null)
+  const hs = hov ? data.find(d => d.label === hov) : null
   let off = 0
-  return <div className="donut">
-    <div className="donut-c" style={{ width: size, height: size }}>
+  return <div className={'donut' + (hov ? ' hov' : '')}>
+    <div className="donut-c" style={{ width: size, height: size }} onPointerLeave={() => setHov(null)}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={data.map(d => d.label + ' ' + d.value).join(', ')}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="donut-bg" strokeWidth={thick} />
         {total > 0 && data.map(d => {
           if (d.value <= 0) return null
           const len = (d.value / total) * C
-          const seg = <circle key={d.label} className={'donut-s c-' + d.c} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={thick} strokeLinecap="butt"
-            strokeDasharray={`${Math.max(0.5, len - gap)} ${C}`} strokeDashoffset={-off} transform={`rotate(-90 ${size / 2} ${size / 2})`}><title>{d.label}: {d.value}</title></circle>
+          const seg = <circle key={d.label} className={'donut-s c-' + d.c + (hov === d.label ? ' on' : '')} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={thick} strokeLinecap="butt"
+            style={{ ['--len' as string]: Math.max(0.5, len - gap), ['--C' as string]: C } as React.CSSProperties}
+            strokeDasharray={`${Math.max(0.5, len - gap)} ${C}`} strokeDashoffset={-off} transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            onPointerEnter={() => setHov(d.label)}><title>{d.label}: {d.value}</title></circle>
           off += len
           return seg
         })}
       </svg>
-      {center !== undefined && <div className="donut-m">{center}</div>}
+      {hs ? <div className={'donut-m c-' + hs.c}><b>{hs.value.toLocaleString('en-IN')}</b><small>{hs.label}{total > 0 ? ' · ' + Math.round((hs.value / total) * 100) + '%' : ''}</small></div>
+        : center !== undefined && <div className="donut-m">{center}</div>}
     </div>
     {legend && <div className="legend">{data.map(d => {
-      const inner = <><i /><span>{d.label}</span><b>{d.value}</b></>
-      return d.to ? <Link key={d.label} to={d.to} className={'c-' + d.c}>{inner}</Link> : <div key={d.label} className={'c-' + d.c}>{inner}</div>
+      const inner = <><i /><span>{d.label}</span><b>{d.value.toLocaleString('en-IN')}</b></>
+      const ev = { onPointerEnter: () => setHov(d.label), onPointerLeave: () => setHov(null), onFocus: () => setHov(d.label), onBlur: () => setHov(null) }
+      const cls = 'c-' + d.c + (hov === d.label ? ' on' : '')
+      return d.to ? <Link key={d.label} to={d.to} className={cls} {...ev}>{inner}</Link> : <div key={d.label} className={cls} {...ev}>{inner}</div>
     })}</div>}
   </div>
 }
@@ -256,7 +297,7 @@ export function AreaChart({ data, height = 220, fmt = (n: number) => String(n), 
       <defs><linearGradient id={'ag' + id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="area-s0" /><stop offset="1" className="area-s1" /></linearGradient></defs>
       {ticks.map(t => <g key={t}><line className="area-g" x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} /><text className="area-y" x={P.l - 8} y={y(t) + 3.5} textAnchor="end">{fmt(Math.round(t))}</text></g>)}
       {area && <path d={area} fill={`url(#ag${id})`} />}
-      {line && <path d={line} className="area-l" fill="none" vectorEffect="non-scaling-stroke" />}
+      {line && <path d={line} className="area-l" fill="none" pathLength={1} vectorEffect="non-scaling-stroke" />}
       {data.map((d, i) => (i % every === 0 && data.length - 1 - i >= every * 0.6) || i === data.length - 1 ? <text key={i} className="area-x" x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}>{d.label}</text> : null)}
       {hov !== null && <g><line className="area-h" x1={pts[hov][0]} x2={pts[hov][0]} y1={P.t} y2={y(0)} vectorEffect="non-scaling-stroke" /></g>}
     </svg>
@@ -272,8 +313,47 @@ export function Skeleton({ h = 14, w = '100%', r, className = '' }: { h?: number
   return <span className={'skel ' + className} style={{ height: h, width: w, borderRadius: r }} aria-hidden="true" />
 }
 
-/** Empty state with a small illustration. */
-export function EmptyState({ title, children, action, ic = 'inbox' }: { title: string; children?: ReactNode; action?: ReactNode; ic?: string }) {
+/** Tiny trend line for KPI cards (no axes). Colour = current --c. */
+export function Sparkline({ data, w = 96, h = 32, fill = true }: { data: number[]; w?: number; h?: number; fill?: boolean }) {
+  const id = useId().replace(/:/g, '')
+  if (data.length < 2) return null
+  const mx = Math.max(...data), mn = Math.min(...data), rg = mx - mn || 1
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * (w - 4) + 2, h - 3 - ((v - mn) / rg) * (h - 8)] as const)
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')
+  const last = pts[pts.length - 1]
+  return <svg className="spk" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+    <defs><linearGradient id={'sp' + id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="spk-s0" /><stop offset="1" className="spk-s1" /></linearGradient></defs>
+    {fill && <path d={line + ` L${last[0]},${h} L${pts[0][0]},${h} Z`} fill={`url(#sp${id})`} />}
+    <path d={line} className="spk-l" fill="none" pathLength={1} />
+    <circle cx={last[0]} cy={last[1]} r={2.8} className="spk-d" />
+  </svg>
+}
+
+export interface Bar { label: string; value: number; hint?: string }
+/** Vertical bar chart with animated bars and a hover / focus read-out. */
+export function BarChart({ data, height = 200, fmt = (n: number) => n.toLocaleString('en-IN'), c = 'indigo', every }: { data: Bar[]; height?: number; fmt?: (n: number) => string; c?: string; every?: number }) {
+  const [hov, setHov] = useState<number | null>(null)
+  const max = Math.max(1, ...data.map(d => d.value))
+  const ints = data.every(d => Number.isInteger(d.value))
+  const nice = ints && max <= 4 ? 4 : (() => { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))); const st = ([1, 2, 2.5, 5, 10].find(x => x * p >= raw) || 10) * p; return st * 4 })()
+  const step = every || Math.max(1, Math.ceil(data.length / 8))
+  const h = hov !== null ? data[hov] : null
+  return <div className={'bch c-' + c} style={{ ['--h' as string]: height + 'px' } as React.CSSProperties} onPointerLeave={() => setHov(null)}>
+    <div className="bch-y" aria-hidden="true">{[1, .75, .5, .25, 0].map(f => <span key={f}>{fmt(Math.round(nice * f * 100) / 100)}</span>)}</div>
+    <div className="bch-p">
+      <div className="bch-g" aria-hidden="true">{[0, 1, 2, 3, 4].map(i => <i key={i} />)}</div>
+      <div className="bch-b" role="list" aria-label="Chart">{data.map((d, i) => <button type="button" key={i} role="listitem" className={'bch-c' + (hov === i ? ' on' : '')}
+        aria-label={(d.hint || d.label) + ': ' + fmt(d.value)} onPointerEnter={() => setHov(i)} onFocus={() => setHov(i)} onBlur={() => setHov(null)}>
+        <i style={{ height: (d.value / nice) * 100 + '%', animationDelay: Math.min(i * 18, 500) + 'ms' }} /></button>)}</div>
+      {h && hov !== null && <div className={'bch-t' + (hov / data.length > 0.66 ? ' l' : '')} style={{ left: ((hov + 0.5) / data.length) * 100 + '%', bottom: Math.min(92, (h.value / nice) * 100) + '%' }}><b>{fmt(h.value)}</b><small>{h.hint || h.label}</small></div>}
+      <div className="bch-x" aria-hidden="true">{data.map((d, i) => <span key={i}>{i % step === 0 || i === data.length - 1 ? d.label : ''}</span>)}</div>
+    </div>
+  </div>
+}
+
+/** Empty state with an illustration (pass a cartoon from components/Cartoons as `art`). */
+export function EmptyState({ title, children, action, ic = 'inbox', art }: { title: string; children?: ReactNode; action?: ReactNode; ic?: string; art?: ReactNode }) {
+  if (art) return <div className="empty es es-art"><div className="es-art-i">{art}</div><h3>{title}</h3>{children && <p className="muted">{children}</p>}{action}</div>
   return <div className="empty es">
     <svg className="es-i" viewBox="0 0 160 110" aria-hidden="true">
       <ellipse cx="80" cy="98" rx="58" ry="7" className="es-sh" />

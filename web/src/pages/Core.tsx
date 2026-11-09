@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useMe, useCan, useMod, useRefreshMe } from '@/lib/session'
 import { initial } from '@/lib/format'
+import { useBrand } from '@/lib/theme'
 import { Alert, Badge, Btn, Card, Empty, Field, Hi, Icon, Secret, Spinner, Switch, toast, usePageTitle, Sec } from '@/components/ui'
 import { SettingsForm, FieldDef } from '@/components/SettingsForm'
 import { SettingsTab } from '@/modules/types'
@@ -62,7 +63,7 @@ const GROUPS: [SettingsTab['group'], string, string, string, string][] = [
   ['channels', 'Messaging', 'Email, WhatsApp, calls', 'msg', 'green'],
   ['prospecting', 'Prospecting', 'Maps, audits, outreach', 'map', 'orange'],
   ['crm', 'CRM', 'Capture, fields, calendar', 'users', 'teal'],
-  ['system', 'System', 'API usage', 'sliders', 'violet'],
+  ['system', 'System', 'Plan, billing & API usage', 'sliders', 'violet'],
 ]
 
 const TZ = ['Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney', 'UTC']
@@ -71,10 +72,11 @@ const img: Record<string, string> = { '.png': '', '.jpg': '', '.jpeg': '', '.web
 const o = (a: string[]) => Object.fromEntries(a.map(x => [x, x]))
 
 function CompanyTab() {
+  const brand = useBrand()
   const f: FieldDef[] = [['company_name', 'Company name'], ['company_tagline', 'Tagline'], ['company_phone', 'Phone'], ['company_email', 'Email', 'email'], ['company_website', 'Website', 'url'],
     ['sender_name', 'Sender name (used in messages)'], ['company_address', 'Address', 'textarea'], ['company_about', 'About your company (shown in reports)', 'textarea'],
     ['company_logo', 'Logo for dark backgrounds (white / light logo)', 'file', img, 'Shown on dark areas: report cover, web report bar, booking page. A transparent PNG works best.'],
-    ['company_logo_light', 'Logo for light backgrounds (dark / colour logo)', 'file', img, 'Shown on white areas: report closing page and emails. If you upload only one version, Setu puts it on a contrasting badge so it is always readable.'],
+    ['company_logo_light', 'Logo for light backgrounds (dark / colour logo)', 'file', img, 'Shown on white areas: report closing page and emails. If you upload only one version, ' + brand.name + ' puts it on a contrasting badge so it is always readable.'],
     ['timezone', 'Timezone', 'select', o(TZ)], ['currency', 'Currency', 'select', o(Object.keys(CUR))], ['currency_symbol', 'Currency symbol', 'text', null, 'Leave empty to use the symbol of the currency.']]
   return <SettingsForm fields={f} />
 }
@@ -92,8 +94,8 @@ export function Settings() {
   const inGroup = tabs.filter(t => t.group === grp)
   const C = cur.component
   return <>
-    <div className="mtabs">{GROUPS.map(([g, lb, ds, ic, c]) => { const first = tabs.find(t => t.group === g); if (!first) return null; const off = g === 'prospecting' && !mod('prospecting'); return <Link key={g} to={'/settings/' + first.key} className={'c-' + c + (grp === g ? ' on' : '') + (off ? ' off' : '')}><span className="hi"><Icon n={ic} /></span><span>{lb}<small>{off ? 'Module off' : ds}</small></span></Link> })}</div>
-    {grp === 'prospecting' && !mod('prospecting') ? <Alert t="warn">The Prospecting module is switched off. A super admin can switch it on under Modules.</Alert> :
+    <div className="mtabs">{GROUPS.map(([g, lb, ds, ic, c]) => { const first = tabs.find(t => t.group === g); if (!first) return null; const off = g === 'prospecting' && !mod('prospecting'); return <Link key={g} to={'/settings/' + first.key} className={'c-' + c + (grp === g ? ' on' : '') + (off ? ' off' : '')}><span className="hi"><Icon n={ic} /></span><span>{lb}<small>{off ? 'Not in your plan' : ds}</small></span></Link> })}</div>
+    {grp === 'prospecting' && !mod('prospecting') ? <Alert t="warn">Prospecting is not part of your current plan. <Link to="/billing">See plans that include it</Link>.</Alert> :
       inGroup.length === 1 ? <div className="card"><C /></div> :
         <div className="sl"><nav className={'snav c-' + GROUPS.find(g => g[0] === grp)![4]}><div className="ng2">{GROUPS.find(g => g[0] === grp)![1]}</div>{inGroup.map(t => <Link key={t.key} to={'/settings/' + t.key} className={t.key === tab ? 'on' : ''}><Icon n={t.ic} />{t.label}</Link>)}</nav>
           <div className="col"><div className="card"><Sec ic={cur.ic} c={GROUPS.find(g => g[0] === grp)![4]}>{cur.label}</Sec><C /></div></div></div>}
@@ -102,7 +104,8 @@ export function Settings() {
 
 // ------------------------------------------------------------------ Platform admin (Setu operators)
 export function Platform() {
-  usePageTitle('Organisations', 'Every workspace on this Setu installation')
+  const brand = useBrand()
+  usePageTitle('Organisations', 'Every workspace on this ' + brand.name + ' installation')
   const me = useMe(), qc = useQueryClient()
   const [q, setQ] = useState('')
   const r = useQuery({ queryKey: ['platform', q], queryFn: () => api.get<any[]>('/platform/orgs', { q }), enabled: me.user.platform_admin })
@@ -129,6 +132,6 @@ export function Denied({ msg = 'You do not have access to that page.' }: { msg?:
 export function Guard({ perm, module, children }: { perm?: string; module?: string; children: JSX.Element }) {
   const can = useCan(), mod = useMod()
   if (perm && !can(perm)) return <Denied />
-  if (module && !mod(module)) return <Denied msg={'The ' + module + ' module is switched off. A super admin can switch it on under Modules in the left menu.'} />
+  if (module && !mod(module)) return <Denied msg={'The ' + module + ' module is not included in your plan. An owner can upgrade under Plan & billing.'} />
   return children
 }

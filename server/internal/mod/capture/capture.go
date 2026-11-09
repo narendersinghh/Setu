@@ -308,7 +308,7 @@ func test(c *app.Ctx) (any, error) {
 	if s.Type == "google" {
 		sample = `{"google_key":` + jsonStr(s.Config.GoogleKey) + `,"is_test":true,"campaign_id":"123","user_column_data":[{"column_id":"FULL_NAME","column_name":"Full Name","string_value":"Test Lead (Google)"},{"column_id":"PHONE_NUMBER","column_name":"Phone","string_value":"+919800000000"},{"column_id":"EMAIL","column_name":"Email","string_value":"test.google@example.com"}]}`
 	} else {
-		sample = `{"name":"Test Lead","phone":"+919800000001","email":"test@example.com","company":"Test Company","message":"This is a test enquiry from Setu settings."}`
+		sample = `{"name":"Test Lead","phone":"+919800000001","email":"test@example.com","company":"Test Company","message":"This is a test enquiry from the lead capture settings."}`
 	}
 	in, _ := decodeJSON([]byte(sample))
 	res := process(c, c.A, c.Org.ID, &s, in, []byte(sample), request{test: true})
@@ -353,7 +353,7 @@ func formSnippet(u, accent string) string {
 
 // scriptSnippet copies every form submission on a page to the source (keeps the form's normal behaviour).
 func scriptSnippet(u string) string {
-	return "<!-- Setu: send any existing form on this page to your CRM (keeps the form's normal behaviour) -->\n<script src=\"" + u + ".js\" async></script>"
+	return "<!-- Lead capture: send any existing form on this page to your CRM (keeps the form's normal behaviour) -->\n<script src=\"" + u + ".js\" async></script>"
 }
 
 func safeColor(c string) string {

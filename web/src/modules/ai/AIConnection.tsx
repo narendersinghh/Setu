@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Alert, Badge, Btn, Field, Hi, Secret, Spinner, Switch, toast } from '@/components/ui'
+import { BrandName, useBrand } from '@/lib/theme'
 
 interface ProviderView { key: string; name: string; url: string; models: string; steps: string[]; note: string; suggest: string[]; has_key: boolean; model: string }
 interface ConnView {
@@ -80,9 +81,9 @@ export default function AIConnection() {
           <div className="grow"><b>{x.name}</b><small>{x.model || 'no model set'}</small></div>
           {d.provider === x.key ? <Badge c="green">In use</Badge> : <Badge c="teal">Key saved</Badge>}</div>)}</div>
       <div><div className="sec"><Hi n="book" c="amber" /><h3>How AI is used</h3></div>
-        <ol className="ol mt0"><li>Setu audits the website and Google listing (no AI cost).</li>
+        <ol className="ol mt0"><li><BrandName /> audits the website and Google listing (no AI cost).</li>
           <li>{d.research ? 'The AI researches the market (once per business type & city), then writes the report from the audit data and your prompt.' : 'The AI writes the report from the audit data and your prompt (market research is off).'}</li>
-          <li>Setu designs the branded PDF.</li></ol>
+          <li><BrandName /> designs the branded PDF.</li></ol>
         <p className="hint">One report uses roughly 15–30k tokens. See costs in <Link className="lnk" to="/usage">API usage</Link>.</p></div>
     </div>
   </>

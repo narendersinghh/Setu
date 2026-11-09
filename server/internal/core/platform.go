@@ -23,6 +23,7 @@ import (
 // platform mailer and updates. See docs/V2_PLATFORM.md.
 
 func registerPlatform(a *app.App) {
+	a.BrandName = func(ctx context.Context) string { return Brand(ctx, a)["name"].(string) }
 	a.Get("/public/brand", func(c *app.Ctx) (any, error) {
 		b := Brand(c, c.A)
 		b["signup"] = c.A.Cfg.SignupOpen
@@ -51,6 +52,7 @@ func registerPlatform(a *app.App) {
 	a.Post("/platform/admins", adminAdd, p)
 	a.Delete("/platform/admins/{id}", adminRemove, p)
 	registerUpdater(a)
+	registerBilling(a)
 }
 
 // ---------------------------------------------------------------- platform settings (instance-wide)

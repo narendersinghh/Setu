@@ -26,7 +26,14 @@
   --pri-d: color-mix(in srgb, var(--pri) 62%, #000);
   --acc-h: color-mix(in srgb, var(--acc) 88%, #000);
   --grad-pri: radial-gradient(120% 90% at 100% 0, color-mix(in srgb, var(--pri) 70%, #FF6B6B) 0, transparent 55%), linear-gradient(140deg, var(--pri) 0%, var(--pri-d) 100%);
-  --tex-w: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23FFFFFF' stroke-opacity='.09' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --tex-w: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112' fill='none' stroke='%23FFFFFF' stroke-opacity='.065'%3E%3Crect x='6.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='6.5' y='62.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='62.5' width='43' height='43' rx='7' fill='%23FFFFFF' fill-opacity='.025'/%3E%3C/svg%3E");
+  --tex-size: 112px 112px;
+  /* ---- spacing scale: one gap for every grid of cards, smaller steps inside cards */
+  --gap: 20px;
+  --gap-s: 12px;
+  --gap-xs: 8px;
+  --pad: 20px;          /* card padding */
+  --ease: cubic-bezier(.2, .7, .2, 1);
   --stripe: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ok) 22%, transparent) 0 6px, transparent 6px 12px);
 }
 
@@ -64,7 +71,7 @@
   --sh1: 0 1px 2px rgba(17, 17, 17, .06);
   --sh2: 0 24px 60px rgba(17, 17, 17, .18);
   --sh-hover: 0 12px 30px rgba(17, 17, 17, .09);
-  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23111111' stroke-opacity='.035' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112' fill='none' stroke='%23111111' stroke-opacity='.038'%3E%3Crect x='6.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='6.5' y='62.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='62.5' width='43' height='43' rx='7' fill='%23111111' fill-opacity='.014'/%3E%3C/svg%3E");
   --skel: linear-gradient(90deg, #EEEEEB 0, #F7F7F5 40%, #EEEEEB 80%);
 
   /* status colour families: text/icon colour + soft background */
@@ -80,8 +87,10 @@
   --f-gray: #575A63;   --f-gray-s: #EEEEEA;
 }
 
-/* ------------------------------------------------------------------ dark theme */
-[data-theme=dark] {
+/* ------------------------------------------------------------------ dark theme
+ * The same tokens also turn any element with .dk (and the KPI cards) into a "dark island" in light mode:
+ * rich near-black surfaces that pull focus to key numbers. */
+[data-theme=dark], .dk, .stat, .kpi {
   color-scheme: dark;
   --bg: #0E0F12;
   --surface: #17191E;
@@ -114,7 +123,7 @@
   --sh1: 0 1px 2px rgba(0, 0, 0, .35);
   --sh2: 0 24px 60px rgba(0, 0, 0, .55);
   --sh-hover: 0 12px 30px rgba(0, 0, 0, .4);
-  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23FFFFFF' stroke-opacity='.028' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112' fill='none' stroke='%23FFFFFF' stroke-opacity='.032'%3E%3Crect x='6.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='6.5' width='43' height='43' rx='7'/%3E%3Crect x='6.5' y='62.5' width='43' height='43' rx='7'/%3E%3Crect x='62.5' y='62.5' width='43' height='43' rx='7' fill='%23FFFFFF' fill-opacity='.014'/%3E%3C/svg%3E");
   --skel: linear-gradient(90deg, #1F2228 0, #2A2D35 40%, #1F2228 80%);
 
   --f-violet: #B9A2FF; --f-violet-s: rgba(160, 130, 255, .15);
@@ -128,6 +137,25 @@
   --f-pink: #F79BCB;   --f-pink-s: rgba(240, 100, 170, .15);
   --f-gray: #B4B7C0;   --f-gray-s: rgba(180, 185, 195, .12);
 }
+
+/* dark island surfaces (light mode: near-black; dark mode: a lifted panel) */
+:root, [data-theme=light] {
+  --dk-bg: #141519;
+  --dk-pri: color-mix(in srgb, var(--pri) 58%, #12060A);     /* deep crimson */
+  --dk-ok: color-mix(in srgb, var(--ok) 40%, #07120A);        /* deep green */
+  --dk-bd: transparent;
+  --dk-sh: 0 1px 2px rgba(17, 17, 17, .12), 0 14px 32px rgba(17, 17, 17, .16);
+}
+[data-theme=dark] {
+  --dk-bg: #1D2027;
+  --dk-pri: color-mix(in srgb, var(--pri) 42%, #14090C);
+  --dk-ok: color-mix(in srgb, var(--ok) 30%, #0C140D);
+  --dk-bd: rgba(255, 255, 255, .07);
+  --dk-sh: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 32px rgba(0, 0, 0, .35);
+}
+.dk, .stat, .kpi { --c: var(--pri-t); --s: var(--pri-s); color: var(--txt) }
+.dk { background: var(--dk-bg); border-color: var(--dk-bd) !important; box-shadow: var(--dk-sh) }
+@media (max-width: 560px) { :root { --gap: 14px; --pad: 16px } }
 
 /* ------------------------------------------------------------------ colour families (v1 class names) */
 :root { --c: var(--pri-t); --s: var(--pri-s); }
