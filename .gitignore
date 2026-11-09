@@ -4,3 +4,8 @@
 /assets/uploads/*
 !/assets/uploads/.htaccess
 .DS_Store
+web/node_modules/
+server/internal/webui/dist/assets/
+/tmp/
+server/internal/webui/dist/*
+!server/internal/webui/dist/.keep
