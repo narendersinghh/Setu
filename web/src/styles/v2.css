@@ -34,10 +34,12 @@
 .sb-co .ic { width: 15px; height: 15px; color: var(--sb-mut) }
 .sb-co .ddm { left: 0; right: 0; min-width: 0 }
 
-.sb nav { flex: 1; overflow-y: auto; padding: 4px 14px 14px; scrollbar-width: thin; scrollbar-color: #2C2E35 transparent }
-.ng { font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--sb-mut); font-weight: 700; padding: 16px 12px 7px }
+.sb nav { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 4px 14px 0; scrollbar-width: thin; scrollbar-color: #2C2E35 transparent }
+.ng { font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--sb-mut); font-weight: 700; padding: 14px 12px 6px }
+.sb nav > div:first-child .ng { padding-top: 8px }
+.sb-gap { flex: 1 1 14px; min-height: 14px }
 .sb nav a {
-  display: flex; align-items: center; gap: 11px; padding: 7px 10px 7px 7px; border-radius: 999px; color: var(--sb-txt); font-weight: 500;
+  display: flex; align-items: center; gap: 11px; padding: 6px 10px 6px 6px; border-radius: 999px; color: var(--sb-txt); font-weight: 500;
   margin-bottom: 3px; position: relative; transition: background .15s, color .15s; white-space: nowrap;
 }
 .sb nav a:hover { background: var(--sb-hover); color: #fff }
@@ -51,7 +53,7 @@
 
 /* plan / upgrade card */
 .sb-plan {
-  position: relative; overflow: hidden; margin: 6px 14px 12px; padding: 16px; border-radius: 18px; color: rgba(255, 255, 255, .85);
+  position: relative; overflow: hidden; flex: none; margin: auto 0 14px; padding: 14px; border-radius: 18px; color: rgba(255, 255, 255, .85);
   background: var(--tex-w) 0 0 / 420px 420px, var(--grad-pri); box-shadow: 0 14px 30px color-mix(in srgb, var(--pri) 25%, transparent);
 }
 .sb-plan::after { content: ""; position: absolute; right: -34px; top: -34px; width: 110px; height: 110px; border-radius: 50%; border: 18px solid rgba(255, 255, 255, .07) }
@@ -60,14 +62,15 @@
 .sb-plan .pl-i .ic { width: 17px; height: 17px }
 .sb-plan b { display: block; color: #fff; font: 800 14.5px/1.2 var(--fh) }
 .sb-plan small { display: block; font-size: 11.5px; color: rgba(255, 255, 255, .75) }
-.sb-plan .pl-u { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1 }
+.sb-plan .pl-u { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1 }
 .sb-plan .pl-r { font-size: 11.5px }
 .sb-plan .pl-r > span { display: flex; justify-content: space-between; margin-bottom: 4px }
 .sb-plan .pl-r > span b { font: 700 11.5px var(--ff); display: inline }
 .sb-plan .pl-t { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, .18); overflow: hidden }
 .sb-plan .pl-t i { display: block; height: 100%; border-radius: 999px; background: var(--acc) }
 .sb-plan .pl-t i.hot { background: #fff }
-.sb-plan .btn { margin-top: 12px; width: 100%; height: 36px; position: relative; z-index: 1 }
+.sb nav .sb-plan a.btn { margin: 10px 0 0; width: 100%; height: 36px; padding: 0 12px; position: relative; z-index: 1; justify-content: center; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-weight: 700 }
+.sb nav .sb-plan a.btn:hover { background: var(--acc-h); color: var(--acc-ink) }
 
 .sb-f { padding: 12px 14px; border-top: 1px solid var(--sb-line); display: flex; align-items: center; gap: 8px }
 .me { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 6px; border-radius: 14px }
@@ -90,9 +93,9 @@ body.mini .sb nav { padding: 4px 14px }
 body.mini .sb nav a { justify-content: center; padding: 7px 0 }
 body.mini .ng { display: block; height: 12px; padding: 0; font-size: 0 }
 body.mini .me { justify-content: center }
-body.mini .sb-plan { padding: 10px; display: flex; justify-content: center; border-radius: 50%; width: 52px; height: 52px; margin: 6px auto 14px; align-items: center }
+body.mini .sb-plan { padding: 10px; display: flex; justify-content: center; border-radius: 50%; width: 52px; height: 52px; margin: auto auto 14px; align-items: center }
 body.mini .sb-plan .pl-h { gap: 0 }
-body.mini .sb-plan .pl-u, body.mini .sb-plan .btn, body.mini .sb-plan .pl-h > span:last-child { display: none }
+body.mini .sb-plan .pl-u, body.mini .sb nav .sb-plan a.btn, body.mini .sb-plan .pl-h > span:last-child { display: none }
 
 /* ================================================================== main + top bar */
 .mn { margin-left: 268px; min-height: 100vh; display: flex; flex-direction: column; transition: margin-left .2s }
@@ -179,7 +182,7 @@ kbd, .kbd { display: inline-flex; align-items: center; gap: 2px; height: 22px; p
 .legend b { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums }
 
 .area { position: relative; width: 100% }
-.area svg { display: block; width: 100%; overflow: visible; touch-action: pan-y }
+.area svg { display: block; max-width: 100%; overflow: visible; touch-action: pan-y }
 .area-l { stroke: var(--c); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round }
 .area-s0 { stop-color: var(--c); stop-opacity: .28 }
 .area-s1 { stop-color: var(--c); stop-opacity: 0 }
@@ -232,6 +235,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-hover) }
 .kpi.hot .hi { background: var(--acc); color: var(--acc-ink) }
 .kpi.hot .trend.up, .kpi.hot .trend.flat { background: rgba(255, 255, 255, .16); color: #fff }
 .kpi.hot .trend.dn { background: var(--acc); color: var(--acc-ink) }
+.kpi.hot .trend em { color: rgba(255, 255, 255, .8) }
 .ch-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px }
 .ch-h h3 { font-size: 15px; display: flex; align-items: center; gap: 10px }
 .ch-v { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 6px }
@@ -321,8 +325,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-hover) }
 .wsl button > .ic { margin-left: auto; color: var(--mut) }
 .wsl button small { display: block; color: var(--mut); font-weight: 500; font-size: 12px }
 
-.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 2px 0 18px }
-.plan { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; color: var(--txt); font: inherit; transition: border-color .15s, box-shadow .15s }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); gap: 10px; margin: 2px 0 18px }
+.plan { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; color: var(--txt); font: inherit; transition: border-color .15s, box-shadow .15s }
 .plan:hover { border-color: color-mix(in srgb, var(--pri) 40%, var(--line)) }
 .plan.on { border-color: var(--pri-t); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 12%, transparent) }
 .plan b { color: var(--ink); font: 800 15px var(--fh) }
@@ -354,8 +358,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-hover) }
   body.mini .sb { width: 280px }
   body.mini .sb .grow, body.mini .sb nav a > span:not(.ni), body.mini .sb nav em, body.mini .ng, body.mini .me > span:last-child, body.mini .sb-f > a, body.mini .sb-co .ic { display: revert }
   body.mini .sb nav a { justify-content: flex-start; padding: 7px 10px 7px 7px }
-  body.mini .sb-plan { display: block; width: auto; height: auto; border-radius: 18px; padding: 16px; margin: 6px 14px 12px }
-  body.mini .sb-plan .pl-u, body.mini .sb-plan .btn, body.mini .sb-plan .pl-h > span:last-child { display: revert }
+  body.mini .sb-plan { display: block; width: auto; height: auto; border-radius: 18px; padding: 14px; margin: auto 0 14px }
+  body.mini .sb-plan .pl-u, body.mini .sb nav .sb-plan a.btn, body.mini .sb-plan .pl-h > span:last-child { display: revert }
   body.mini .sb-plan .pl-h { gap: 10px }
   body.mini .sb-h { padding: 20px 20px 14px; justify-content: flex-start }
   .mob { display: inline-flex }

@@ -126,8 +126,8 @@ export default function Layout() {
         {me.workspaces.length > 1 && <div className="ddm" role="menu"><div className="dh">Switch workspace</div>{wsList}</div>}
       </div>
       <nav>{nav.map(([g, its]) => <div key={g}><div className="ng">{g}</div>{its.map(it =>
-        <NavLink key={it.to} to={it.to} title={it.label} className={() => 'c-' + it.c + (active(it) ? ' on' : '')} aria-current={active(it) ? 'page' : undefined}><span className="ni"><Icon n={it.ic} /></span><span>{it.label}</span>{!!it.n && <em>{it.n > 999 ? '999+' : it.n}</em>}</NavLink>)}</div>)}</nav>
-      <PlanCard />
+        <NavLink key={it.to} to={it.to} title={it.label} className={() => 'c-' + it.c + (active(it) ? ' on' : '')} aria-current={active(it) ? 'page' : undefined}><span className="ni"><Icon n={it.ic} /></span><span>{it.label}</span>{!!it.n && <em>{it.n > 999 ? '999+' : it.n}</em>}</NavLink>)}</div>)}
+        <span className="sb-gap" /><PlanCard /></nav>
     </aside>
     <div className="ov" onClick={() => document.body.classList.remove('nav')} />
     <main className="mn">

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Setu v2 one-command installer for a fresh Ubuntu 24.04 VPS (Hostinger "Ubuntu 24.04" template).
 #
+#   Easiest (asks every question, incl. the GitHub token): see docs/HOSTINGER.md step 5.
 #   curl -fsSL https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh \
 #     | sudo bash -s -- --domain app.example.com --email you@example.com
 #
@@ -85,6 +86,12 @@ EXISTING=0
 [[ -n $REPO ]] || REPO=$(env_get SETU_UPDATE_REPO)
 [[ -n $REPO ]] || REPO=$DEFAULT_REPO
 [[ -n $TOKEN ]] || TOKEN=$(env_get SETU_UPDATE_TOKEN)
+[[ -n $TOKEN ]] || TOKEN=${SETU_GITHUB_TOKEN:-}
+
+# Guided set-up: ask for anything that was not given on the command line (needs a terminal)
+if [[ $DRY_RUN == 0 && -z ${SETU_NONINTERACTIVE:-} ]] && { : </dev/tty; } 2>/dev/null; then
+	wizard
+fi
 
 DOMAIN=$(tr '[:upper:]' '[:lower:]' <<<"$DOMAIN")
 [[ -n $DOMAIN ]] || die "--domain is required (the address of this CRM, e.g. app.example.com)"
@@ -131,6 +138,64 @@ write_caddy_site
 write_backup_cron
 start_and_check
 summary
+}
+
+# ====================================================================== guided set-up
+ask() { # ask VAR "Question" [default]
+	local __v="" __q="$2" __d="${3:-}"
+	[[ -n $__d ]] && __q="$__q [$__d]"
+	read -r -p "    $__q: " __v </dev/tty || true
+	printf -v "$1" '%s' "${__v:-$__d}"
+}
+ask_secret() { # ask_secret VAR "Question"
+	local __v=""
+	read -r -s -p "    $2: " __v </dev/tty || true
+	printf '\n' >/dev/tty
+	printf -v "$1" '%s' "$__v"
+}
+wizard() {
+	local need=0
+	[[ -z $DOMAIN || -z $ACME_EMAIL || ( $EXISTING == 0 && -z $ADMIN_EMAIL ) ]] && need=1
+	[[ $need == 0 && -n $TOKEN ]] && return 0
+	printf '\n%s Setu set-up – answer a few questions (press Enter to accept the value in [brackets])%s\n\n' "$c_bold" "$c_off"
+	while [[ -z $DOMAIN || ! $DOMAIN =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$ ]]; do
+		ask DOMAIN "1. Web address of your CRM (e.g. crm.yourcompany.com – its DNS must point to this server)"
+		DOMAIN=$(tr '[:upper:]' '[:lower:]' <<<"$DOMAIN"); DOMAIN=${DOMAIN#http://}; DOMAIN=${DOMAIN#https://}; DOMAIN=${DOMAIN%%/*}
+	done
+	while [[ ! $ACME_EMAIL =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; do
+		ask ACME_EMAIL "2. Your email (for the SSL certificate and alerts)"
+	done
+	if [[ $EXISTING == 0 && -z $ADMIN_EMAIL ]]; then
+		ask ADMIN_EMAIL "3. Email for YOUR platform-admin login (use a different one from customer accounts)" "$ACME_EMAIL"
+		while :; do
+			local p2=""
+			ask_secret ADMIN_PASSWORD "4. Choose the admin password (10+ characters, typing is hidden)"
+			ask_secret p2 "   Type the password again"
+			if [[ ${#ADMIN_PASSWORD} -lt 10 ]]; then warn "Too short – use at least 10 characters."
+			elif [[ $ADMIN_PASSWORD != "$p2" ]]; then warn "The two passwords are different – try again."
+			elif [[ $ADMIN_PASSWORD == *[\'\"\\]* ]]; then warn "Please do not use quotes or backslashes."
+			else break; fi
+		done
+	fi
+	if [[ -z $TOKEN ]]; then
+		info "5. GitHub token – needed because the Setu repository is private."
+		info "   Create it at github.com → Settings → Developer settings → Fine-grained tokens"
+		info "   (Repository access: only 'setu' · Permissions: Contents = Read-only)."
+		while [[ -z $TOKEN || ! $TOKEN =~ ^[A-Za-z0-9_]+$ ]]; do
+			ask_secret TOKEN "   Paste the token (typing is hidden; Enter to skip if the repository is public)"
+			[[ -z $TOKEN ]] && break
+			[[ $TOKEN =~ ^[A-Za-z0-9_]+$ ]] || warn "That does not look like a GitHub token – paste it again."
+		done
+	fi
+	if [[ -z $RELEASE && $EXISTING == 0 ]]; then
+		local v=""
+		ask v "6. Which version? 1 = latest build (recommended for now), 2 = stable releases only" "1"
+		[[ $v == 2 ]] && CHANNEL=stable || CHANNEL=edge
+	fi
+	printf '\n    %sSummary%s\n    Address:  https://%s\n    Admin:    %s\n    Version:  %s\n    Token:    %s\n\n' "$c_bold" "$c_off" "$DOMAIN" "${ADMIN_EMAIL:-(unchanged)}" "$CHANNEL" "$([[ -n $TOKEN ]] && echo saved || echo none)"
+	local ok=""
+	ask ok "Start the installation? (y/n)" "y"
+	[[ $ok =~ ^[Yy] ]] || die "Cancelled – nothing was changed."
 }
 
 # ====================================================================== helpers

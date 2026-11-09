@@ -215,9 +215,18 @@ export interface Point { label: string; value: number; hint?: string }
 export function AreaChart({ data, height = 220, fmt = (n: number) => String(n), c = 'indigo' }: { data: Point[]; height?: number; fmt?: (n: number) => string; c?: string }) {
   const id = useId().replace(/:/g, '')
   const [hov, setHov] = useState<number | null>(null)
-  const W = 640, H = height, P = { l: 34, r: 12, t: 14, b: 26 }
-  const max = Math.max(1, ...data.map(d => d.value))
-  const nice = useMemo(() => { const p = Math.pow(10, Math.floor(Math.log10(max))); const s = [1, 2, 2.5, 5, 10].find(x => x * p >= max / 4) || 10; return Math.ceil(max / (s * p)) * s * p }, [max])
+  const box = useRef<HTMLDivElement>(null)
+  const [W, setW] = useState(640)
+  useEffect(() => {
+    const el = box.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(e => { const w = Math.round(e[0].contentRect.width); if (w > 0) setW(w) })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const H = height, P = { l: 34, r: 12, t: 14, b: 26 }
+  const max = Math.max(4, ...data.map(d => d.value))
+  const nice = useMemo(() => { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))); const step = ([1, 2, 5, 10].find(x => x * p >= raw) || 10) * p; return Math.max(4, step * 4) }, [max])
   const x = (i: number) => P.l + (data.length <= 1 ? (W - P.l - P.r) / 2 : (i * (W - P.l - P.r)) / (data.length - 1))
   const y = (v: number) => P.t + (H - P.t - P.b) * (1 - v / nice)
   const pts = data.map((d, i) => [x(i), y(d.value)] as const)
@@ -233,7 +242,7 @@ export function AreaChart({ data, height = 220, fmt = (n: number) => String(n), 
   })
   const area = pts.length ? `${line} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z` : ''
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => nice * f)
-  const every = Math.max(1, Math.ceil(data.length / 8))
+  const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(W / 80))))
   const move = (e: PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
     const px = ((e.clientX - r.left) / r.width) * W
@@ -242,13 +251,13 @@ export function AreaChart({ data, height = 220, fmt = (n: number) => String(n), 
     setHov(best)
   }
   const h = hov !== null ? data[hov] : null
-  return <div className={'area c-' + c}>
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ height }} onPointerMove={move} onPointerLeave={() => setHov(null)} role="img" aria-label={data.map(d => d.label + ': ' + fmt(d.value)).join(', ')}>
+  return <div className={'area c-' + c} ref={box}>
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} onPointerMove={move} onPointerLeave={() => setHov(null)} role="img" aria-label={data.map(d => d.label + ': ' + fmt(d.value)).join(', ')}>
       <defs><linearGradient id={'ag' + id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="area-s0" /><stop offset="1" className="area-s1" /></linearGradient></defs>
       {ticks.map(t => <g key={t}><line className="area-g" x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} /><text className="area-y" x={P.l - 8} y={y(t) + 3.5} textAnchor="end">{fmt(Math.round(t))}</text></g>)}
       {area && <path d={area} fill={`url(#ag${id})`} />}
       {line && <path d={line} className="area-l" fill="none" vectorEffect="non-scaling-stroke" />}
-      {data.map((d, i) => i % every === 0 || i === data.length - 1 ? <text key={i} className="area-x" x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}>{d.label}</text> : null)}
+      {data.map((d, i) => (i % every === 0 && data.length - 1 - i >= every * 0.6) || i === data.length - 1 ? <text key={i} className="area-x" x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}>{d.label}</text> : null)}
       {hov !== null && <g><line className="area-h" x1={pts[hov][0]} x2={pts[hov][0]} y1={P.t} y2={y(0)} vectorEffect="non-scaling-stroke" /></g>}
     </svg>
     {hov !== null && h && <>

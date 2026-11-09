@@ -53,19 +53,31 @@ Check it: `ping app.mybrand.com` should show the VPS IP (can take a few minutes)
 
 ## 5. Run the installer
 
-Paste this (one line), with your domain and email:
+You need one thing ready: a **GitHub token** (the Setu code is in a private repository).
+Create it once at github.com → your photo → **Settings → Developer settings → Personal access tokens →
+Fine-grained tokens → Generate new token**: Repository access *Only select repositories* → `setu`,
+Permissions → *Contents: Read-only*, expiry 1 year. Copy it (it starts with `github_pat_`).
+Never paste the token into chats or emails – only into the installer and the Platform console.
+
+Now copy this **one line**, paste it into the terminal (right-click → Paste) and press **Enter**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh | sudo bash -s -- \
-  --domain app.mybrand.com --email you@mybrand.com \
-  --admin-email you@mybrand.com
+bash -c 'read -rsp "Paste your GitHub token and press Enter: " T </dev/tty; echo; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh || echo "Download failed – check the token and try again."'
 ```
 
-* `--admin-email` creates the **platform admin** (you). A password is generated and printed at the end;
-  give your own with `--admin-password 'S0me-long-password'`.
-* Add `--channel edge` if no stable release exists yet (see section 9).
-* **Private GitHub repository?** add `--token <GitHub token>` (a fine-grained token with *Contents: read*
-  on the repository). It is also used by in-app updates.
+The installer then asks a few questions – just type the answer and press Enter:
+
+| Question | What to type |
+|---|---|
+| 1. Web address of your CRM | e.g. `crm.yourcompany.com` (the domain from step 3) |
+| 2. Your email | for the SSL certificate and alerts |
+| 3. Email for your platform-admin login | the email **you** will log in with (not a customer's) |
+| 4. Admin password | 10+ characters, typed twice (nothing shows while typing – that is normal) |
+| 5. Which version | press Enter (latest build) |
+| Start the installation? | press Enter |
+
+(Experts can still pass everything as options: `--domain`, `--email`, `--admin-email`, `--admin-password`,
+`--channel`, `--token`, `--instance` – see `install.sh --help`.)
 
 It takes 3–8 minutes. At the end you see a summary like:
 
@@ -90,7 +102,7 @@ database passwords.
 
 ## 6. First login as platform admin
 
-1. Open `https://app.mybrand.com` and sign in with the admin email + password from the summary.
+1. Open your CRM address (e.g. `https://crm.yourcompany.com`) and sign in with the admin email and the password you chose.
 2. You land in the **Platform console** (`/admin`). Change your password (account menu).
 3. Optional: remove `SETU_ADMIN_PASSWORD` from `/etc/setu/setu.env` afterwards
    (`sudo nano /etc/setu/setu.env`, then `sudo systemctl restart setu`).
@@ -117,12 +129,11 @@ In the Platform console:
 ## 8. A second CRM brand on the same VPS
 
 Each brand is an **instance** with its own domain, database, users, branding and plans. Point the second
-domain at the same VPS IP (section 3), then run the installer again with a new `--instance` name:
+domain at the same VPS IP (section 3), then paste the same line as in step 5 with a new instance name at
+the end (`crm2` here) and answer the questions with the second brand's address and admin email:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh | sudo bash -s -- \
-  --instance crm2 --domain app.otherbrand.com --email you@mybrand.com \
-  --admin-email admin@otherbrand.com
+bash -c 'read -rsp "Paste your GitHub token and press Enter: " T </dev/tty; echo; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh --instance crm2 || echo "Download failed – check the token and try again."'
 ```
 
 The second instance gets the next free port (8081), `/opt/crm2`, `/etc/crm2/setu.env` (its **own**
