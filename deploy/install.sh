@@ -31,7 +31,7 @@ umask 022
 
 # ------------------------------------------------------------------ defaults / args
 DOMAIN="" ACME_EMAIL="" INSTANCE="setu" CHANNEL="" RELEASE="" ADMIN_EMAIL="" ADMIN_PASSWORD=""
-REPO="" TOKEN="" PORT="" FORCE=0 DRY_RUN=0 ROOT=""
+REPO="" TOKEN="" PORT="" FORCE=0 DRY_RUN=0 ROOT="" CADDY_FAILED=0
 DEFAULT_REPO="narendersinghh/setu"
 SCRIPTS_REF="main"
 GOTENBERG_IMAGE="gotenberg/gotenberg:8"
@@ -459,10 +459,21 @@ import /etc/caddy/Caddyfile.d/*.caddy
 EOF
 		ok "main Caddyfile written"
 	fi
-	if [[ $DRY_RUN == 0 ]] && ss -Hltnp 'sport = :80' 2>/dev/null | grep -v '"caddy"' | grep -q .; then
-		warn "port 80 is used by another program ($(ss -Hltnp 'sport = :80' | grep -o 'users:(("[^"]*' | head -1 | cut -d'"' -f2)) – stop it (e.g. systemctl disable --now apache2 nginx) so Caddy can serve HTTPS"
+	# Web servers pre-installed by some VPS templates (Apache, Nginx, LiteSpeed) hold ports 80/443
+	if [[ $DRY_RUN == 0 ]]; then
+		local svc
+		for svc in apache2 nginx lshttpd openlitespeed httpd; do
+			if systemctl is-active --quiet "$svc" 2>/dev/null; then
+				warn "$svc was using the web ports – stopping and disabling it so Caddy can serve HTTPS"
+				systemctl disable --now "$svc" >/dev/null 2>&1 || true
+			fi
+		done
+		if ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null | grep -v '"caddy"' | grep -q .; then
+			warn "ports 80/443 are still used by: $(ss -Hltnp '( sport = :80 or sport = :443 )' | grep -o 'users:(("[^"]*' | cut -d'"' -f2 | sort -u | tr '\n' ' ')– stop that program, then run the installer again"
+		fi
 	fi
-	run systemctl enable --now caddy
+	run systemctl enable caddy
+	caddy_start
 }
 
 setup_gotenberg() {
@@ -785,9 +796,19 @@ EOF
 			rm -f "$f"
 			die "Caddy rejected the configuration (see above) – $f was removed"
 		fi
-		run systemctl reload-or-restart caddy
+		caddy_start
 	fi
 	ok "Caddy site $DOMAIN → 127.0.0.1:$PORT ($f)"
+}
+
+# (Re)start Caddy; on failure show the reason and continue so the rest of the install completes
+caddy_start() {
+	[[ $DRY_RUN == 1 ]] && { run systemctl reload-or-restart caddy; return 0; }
+	if systemctl reload-or-restart caddy 2>/dev/null; then return 0; fi
+	CADDY_FAILED=1
+	warn "Caddy (HTTPS web server) did not start. Last log lines:"
+	journalctl -u caddy --no-pager -n 12 2>/dev/null | sed 's/^/      /' >&2 || true
+	warn "Fix the cause shown above (usually another program on port 80/443), then run: systemctl restart caddy"
 }
 
 write_backup_cron() {
