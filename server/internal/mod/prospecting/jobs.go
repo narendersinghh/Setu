@@ -240,6 +240,9 @@ func (m *mod) searchPage(ctx context.Context, org int64, c campaignRow, s *setti
 		rows = append(rows, row{have, it.PlaceID, cut(it.Name, 250), cut(it.Category, 180), cut(it.Address, 490), cut(city, 110), cut(it.Phone, 40), cut(it.Website, 490), it.Rating, it.Reviews, cut(it.MapsURL, 490), it.Lat, it.Lng, it.Raw})
 	}
 	return m.a.DB.Org(ctx, org, func(tx pgx.Tx) error {
+		if r := app.Remaining(ctx, tx, org, "leads"); r >= 0 && len(rows) > r { // plan limit on leads
+			rows = rows[:r]
+		}
 		if len(rows) > 0 {
 			js, _ := json.Marshal(rows)
 			var n int

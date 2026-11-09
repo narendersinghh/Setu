@@ -21,30 +21,29 @@ import (
 func Register(a *app.App) {
 	a.Post("/signup", signup, app.NoAuth())
 	a.Post("/login", login, app.NoAuth())
-	a.Post("/logout", logout)
-	a.Post("/switch", switchOrg)
-	a.Get("/me", me)
+	a.Post("/logout", logout, app.AnyOrg())
+	a.Post("/switch", switchOrg, app.AnyOrg())
+	a.Get("/me", me, app.AnyOrg())
+	a.Post("/password/forgot", forgot, app.NoAuth())
+	a.Post("/password/reset", resetPassword, app.NoAuth())
 	a.Get("/workspace", workspace, app.NoAuth())
-	a.Put("/account", account, app.Perm("account"))
+	a.Put("/account", account, app.AnyOrg())
 	a.Get("/team", teamList, app.Perm("team"))
 	a.Post("/team", teamSave, app.Perm("team"))
 	a.Put("/team/{id}", teamSave, app.Perm("team"))
 	a.Delete("/team/{id}", teamDelete, app.Perm("team"))
-	a.Get("/modules", modulesGet, app.Perm("modules"))
-	a.Put("/modules", modulesPut, app.Perm("modules"))
 	registerSettings(a)
 	a.Get("/domain-check", domainCheck, app.NoAuth())
-	a.Put("/workspace/domain", setDomain, app.Perm("modules"))
+	a.Put("/workspace/domain", setDomain, app.Perm("super_users"))
 	a.Public(http.MethodGet, "/healthz", func(c *app.Ctx) (any, error) {
 		if err := c.A.DB.Pool.Ping(c); err != nil {
 			return nil, app.Err(http.StatusServiceUnavailable, "database unavailable")
 		}
 		return map[string]any{"ok": true}, nil
 	})
-	a.Get("/platform/orgs", platformOrgs)
-	a.Put("/platform/orgs/{id}", platformOrgUpdate)
+	registerPlatform(a)
 	a.Seed(func(ctx context.Context, tx pgx.Tx, orgID int64, s *settings.Store) error {
-		return s.Many(ctx, tx, map[string]any{"timezone": "Asia/Kolkata", "currency": "INR", "currency_symbol": "₹", "default_country_code": "91", "mod_prospecting": "1"})
+		return s.Many(ctx, tx, map[string]any{"timezone": "Asia/Kolkata", "currency": "INR", "currency_symbol": "₹", "default_country_code": "91"})
 	})
 }
 
@@ -71,6 +70,7 @@ type signupIn struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
+	PlanID   int64  `json:"plan_id"`
 }
 
 func signup(c *app.Ctx) (any, error) {
@@ -97,11 +97,26 @@ func signup(c *app.Ctx) (any, error) {
 	var orgID, userID int64
 	err := pgx.BeginFunc(c, c.A.DB.Pool, func(tx pgx.Tx) error {
 		// Internal short name (used in exports/support); everyone signs in at the same address
-		if err := tx.QueryRow(c, `INSERT INTO orgs (slug,name) VALUES ($1,$2) RETURNING id`, slugify(in.Company)+"-"+secure.Token(3), in.Company).Scan(&orgID); err != nil {
+		// Plan: a public plan chosen on sign up, else the default plan; trial days start now
+		var planID *int64
+		var trial int
+		if err := tx.QueryRow(c, `SELECT id, trial_days FROM plans WHERE (id=$1 AND public) OR ($1=0 AND is_default) ORDER BY is_default LIMIT 1`, in.PlanID).Scan(&planID, &trial); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		var trialEnd *time.Time
+		if trial > 0 {
+			t := time.Now().AddDate(0, 0, trial)
+			trialEnd = &t
+		}
+		if err := tx.QueryRow(c, `INSERT INTO orgs (slug,name,plan_id,trial_ends_at) VALUES ($1,$2,$3,$4) RETURNING id`, slugify(in.Company)+"-"+secure.Token(3), in.Company, planID, trialEnd).Scan(&orgID); err != nil {
 			return err
 		}
 		var hash string
-		err := tx.QueryRow(c, `SELECT id, password_hash FROM users WHERE email=$1`, in.Email).Scan(&userID, &hash)
+		var platform bool
+		err := tx.QueryRow(c, `SELECT id, password_hash, platform_admin FROM users WHERE email=$1`, in.Email).Scan(&userID, &hash, &platform)
+		if err == nil && platform {
+			return app.Bad("This email is reserved. Use another email for your workspace.")
+		}
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 			if err := tx.QueryRow(c, `INSERT INTO users (email,name,password_hash,phone) VALUES ($1,$2,$3,$4) RETURNING id`,
@@ -159,9 +174,10 @@ type creds struct {
 }
 
 type userRow struct {
-	ID     int64  `db:"id"`
-	Hash   string `db:"password_hash"`
-	Active bool   `db:"active"`
+	ID       int64  `db:"id"`
+	Hash     string `db:"password_hash"`
+	Platform bool   `db:"platform_admin"`
+	Active   bool   `db:"active"`
 }
 
 func checkCreds(c *app.Ctx, in creds) (*userRow, error) {
@@ -169,7 +185,7 @@ func checkCreds(c *app.Ctx, in creds) (*userRow, error) {
 	if !c.A.Throttle(c, key+":chk", 10, 15*time.Minute) {
 		return nil, app.Err(http.StatusTooManyRequests, "Too many failed attempts. Please wait 15 minutes and try again.")
 	}
-	u, err := db.One[userRow](c, c.A.DB.Pool, `SELECT id,password_hash,active FROM users WHERE email=$1`, strings.ToLower(strings.TrimSpace(in.Email)))
+	u, err := db.One[userRow](c, c.A.DB.Pool, `SELECT id,password_hash,active,platform_admin FROM users WHERE email=$1`, strings.ToLower(strings.TrimSpace(in.Email)))
 	if err != nil || !secure.CheckPassword(u.Hash, in.Password) {
 		return nil, app.Err(http.StatusUnauthorized, "Invalid email or password.")
 	}
@@ -206,6 +222,13 @@ func login(c *app.Ctx) (any, error) {
 	u, err := checkCreds(c, in.creds)
 	if err != nil {
 		return nil, err
+	}
+	if u.Platform && c.Org == nil {
+		if err := c.A.StartSession(c, u.ID, 0); err != nil {
+			return nil, err
+		}
+		c.A.DB.Pool.Exec(c, `UPDATE users SET last_login=now() WHERE id=$1`, u.ID)
+		return map[string]any{"ok": true, "csrf": c.CSRF, "console": true}, nil
 	}
 	ws, err := workspacesOf(c, u.ID)
 	if err != nil {
@@ -268,8 +291,13 @@ func workspace(c *app.Ctx) (any, error) {
 }
 
 func me(c *app.Ctx) (any, error) {
+	brand := Brand(c, c.A)
+	if c.Org == nil { // platform console session
+		return map[string]any{"user": c.User, "org": nil, "workspaces": []any{}, "csrf": c.CSRF, "perms": []string{}, "modules": map[string]bool{},
+			"roles": app.Roles, "settings": map[string]string{}, "brand": brand, "console": true}, nil
+	}
 	perms := []string{}
-	for _, p := range []string{"dashboard", "leads", "appointments", "account", "prospecting", "automations", "templates", "settings", "team", "modules", "super_users"} {
+	for _, p := range []string{"dashboard", "leads", "appointments", "account", "prospecting", "automations", "templates", "settings", "team", "super_users"} {
 		if c.Can(p) {
 			perms = append(perms, p)
 		}
@@ -279,11 +307,23 @@ func me(c *app.Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Plan usage for keys that have a limit
+	limits := map[string]any{}
+	for _, k := range app.LimitKeys {
+		if lim := c.Org.Limits[k[0]]; lim > 0 {
+			limits[k[0]] = map[string]any{"limit": lim, "used": app.Usage(c, c.Tx(), k[0]), "label": k[1]}
+		}
+	}
+	var trialEnd *time.Time
+	c.A.DB.Pool.QueryRow(c, `SELECT trial_ends_at FROM orgs WHERE id=$1`, c.Org.ID).Scan(&trialEnd)
+	org := map[string]any{"id": c.Org.ID, "slug": c.Org.Slug, "name": c.Org.Name, "status": c.Org.Status, "plan": map[string]any{"id": c.Org.PlanID, "name": c.Org.Plan}, "trial_ends_at": trialEnd}
 	return map[string]any{
-		"user": c.User, "org": c.Org, "workspaces": ws, "csrf": c.CSRF, "perms": perms,
+		"user": c.User, "org": org, "workspaces": ws, "csrf": c.CSRF, "perms": perms, "support": c.Support,
 		"modules":  map[string]bool{"crm": true, "prospecting": c.Mod("prospecting")},
+		"limits":   limits,
+		"brand":    brand,
 		"roles":    app.Roles,
-		"settings": map[string]string{"company_name": s.Get("company_name", c.Org.Name), "currency": s.Get("currency", "INR"), "currency_symbol": s.Get("currency_symbol", "₹"), "timezone": s.Get("timezone", "Asia/Kolkata"), "default_country_code": s.Get("default_country_code", "91"), "logo_dark": s.Get("logo_dark", ""), "logo_light": s.Get("logo_light", "")},
+		"settings": map[string]string{"company_name": s.Get("company_name", c.Org.Name), "currency": s.Get("currency", "INR"), "currency_symbol": s.Get("currency_symbol", "₹"), "timezone": s.Get("timezone", "Asia/Kolkata"), "default_country_code": s.Get("default_country_code", "91"), "logo_dark": s.Get("company_logo", ""), "logo_light": s.Get("company_logo_light", "")},
 	}, nil
 }
 
@@ -347,7 +387,7 @@ func teamList(c *app.Ctx) (any, error) {
   EXISTS(SELECT 1 FROM memberships x WHERE x.user_id=u.id AND x.org_id<>m.org_id) shared,
   (SELECT count(*) FROM leads l WHERE l.assigned_to=u.id AND l.is_lead AND l.status NOT IN ('won','lost')) open_n,
   (SELECT count(*) FROM leads l WHERE l.assigned_to=u.id AND l.status='won') won_n
-FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=$1
+FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=$1 AND NOT u.platform_admin
 ORDER BY m.active DESC, array_position(ARRAY['super','admin','sales'], m.role), u.name`, c.Org.ID)
 	return map[string]any{"members": ms, "me": c.User.ID}, err
 }
@@ -378,7 +418,7 @@ func teamSave(c *app.Ctx) (any, error) {
 	if id > 0 {
 		var role string
 		var shared bool
-		if err := tx.QueryRow(c, `SELECT m.role, EXISTS(SELECT 1 FROM memberships x WHERE x.user_id=m.user_id AND x.org_id<>m.org_id) FROM memberships m WHERE m.org_id=$1 AND m.user_id=$2`, c.Org.ID, id).Scan(&role, &shared); err != nil {
+		if err := tx.QueryRow(c, `SELECT m.role, EXISTS(SELECT 1 FROM memberships x WHERE x.user_id=m.user_id AND x.org_id<>m.org_id) FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=$1 AND m.user_id=$2 AND NOT u.platform_admin`, c.Org.ID, id).Scan(&role, &shared); err != nil {
 			return nil, app.NotFound()
 		}
 		if role == "super" && !c.IsSuper() {
@@ -421,8 +461,15 @@ func teamSave(c *app.Ctx) (any, error) {
 	if in.Name == "" || !validEmail(in.Email) {
 		return nil, app.Bad("Enter a name and a valid email.")
 	}
+	if err := c.A.CheckLimit(c, tx, c.Org.ID, "users", 1); err != nil {
+		return nil, err
+	}
 	var uid int64
-	err := tx.QueryRow(c, `SELECT id FROM users WHERE email=$1`, in.Email).Scan(&uid)
+	var platform bool
+	err := tx.QueryRow(c, `SELECT id, platform_admin FROM users WHERE email=$1`, in.Email).Scan(&uid, &platform)
+	if err == nil && platform {
+		return nil, app.Bad("This email cannot be added. Use another email.")
+	}
 	existing := err == nil
 	if errors.Is(err, pgx.ErrNoRows) {
 		if len(in.Password) < 8 {
@@ -454,7 +501,7 @@ func teamDelete(c *app.Ctx) (any, error) {
 	}
 	tx := c.Tx()
 	var role string
-	if err := tx.QueryRow(c, `SELECT role FROM memberships WHERE org_id=$1 AND user_id=$2`, c.Org.ID, id).Scan(&role); err != nil {
+	if err := tx.QueryRow(c, `SELECT m.role FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=$1 AND m.user_id=$2 AND NOT u.platform_admin`, c.Org.ID, id).Scan(&role); err != nil {
 		return nil, app.NotFound()
 	}
 	if role == "super" && (!c.IsSuper() || supersLeft(c, id) == 0) {
@@ -466,57 +513,6 @@ func teamDelete(c *app.Ctx) (any, error) {
 	// Remove the login entirely when the person belongs to no other workspace
 	tx.Exec(c, `DELETE FROM users u WHERE u.id=$1 AND NOT EXISTS (SELECT 1 FROM memberships m WHERE m.user_id=u.id)`, id)
 	return nil, err
-}
-
-// ---------------------------------------------------------------- modules
-
-func modulesGet(c *app.Ctx) (any, error) {
-	return map[string]any{"crm": true, "prospecting": c.Mod("prospecting")}, nil
-}
-
-func modulesPut(c *app.Ctx) (any, error) {
-	var in struct {
-		Prospecting bool `json:"prospecting"`
-	}
-	if err := c.Bind(&in); err != nil {
-		return nil, err
-	}
-	return nil, c.SetS("mod_prospecting", in.Prospecting)
-}
-
-// ---------------------------------------------------------------- platform admin (Setu operators)
-
-func platformOrgs(c *app.Ctx) (any, error) {
-	if !c.User.PlatformAdmin {
-		return nil, app.Forbidden()
-	}
-	q := "%" + c.Query("q") + "%"
-	return db.Maps(c, c.A.DB.Pool, `SELECT o.id,o.slug,o.name,o.plan,o.status,o.created_at,
- (SELECT count(*) FROM memberships m WHERE m.org_id=o.id) users
-FROM orgs o WHERE o.slug ILIKE $1 OR o.name ILIKE $1 ORDER BY o.id DESC LIMIT 200`, q)
-}
-
-func platformOrgUpdate(c *app.Ctx) (any, error) {
-	if !c.User.PlatformAdmin {
-		return nil, app.Forbidden()
-	}
-	var in struct{ Status, Plan string }
-	if err := c.Bind(&in); err != nil {
-		return nil, err
-	}
-	if in.Status != "active" && in.Status != "suspended" {
-		return nil, app.Bad("Unknown status")
-	}
-	var o app.Org
-	err := c.A.DB.Pool.QueryRow(c, `UPDATE orgs SET status=$2, plan=COALESCE(NULLIF($3,''),plan) WHERE id=$1 RETURNING id,slug`, c.ParamID("id"), in.Status, in.Plan).Scan(&o.ID, &o.Slug)
-	if err != nil {
-		return nil, app.NotFound()
-	}
-	c.A.ForgetOrg(&o)
-	if in.Status == "suspended" {
-		c.A.DB.Pool.Exec(c, `DELETE FROM sessions WHERE org_id=$1`, o.ID)
-	}
-	return nil, nil
 }
 
 // ---------------------------------------------------------------- custom domains (optional)

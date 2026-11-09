@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/narendersinghh/setu/server/internal/app"
+	"github.com/narendersinghh/setu/server/internal/core"
 	"github.com/narendersinghh/setu/server/internal/db"
 	"github.com/narendersinghh/setu/server/internal/mod/crm"
 	"github.com/narendersinghh/setu/server/internal/mod/shared"
@@ -69,8 +70,10 @@ func SendEmail(ctx context.Context, a *app.App, orgID int64, s *settings.Store, 
 	if _, err := mail.ParseAddress(to); err != nil || !strings.Contains(to, "@") {
 		return 0, errors.New("This lead has no valid email address.")
 	}
-	if !MailReady(s) {
-		return 0, errors.New("Email is not set up yet – Settings → Messaging → Email.")
+	if e.LeadID > 0 {
+		if err := a.DB.Org(ctx, orgID, func(tx pgx.Tx) error { return a.CheckLimit(ctx, tx, orgID, "emails_month", 1) }); err != nil {
+			return 0, err
+		}
 	}
 	subject := strings.TrimSpace(e.Subject)
 	tk := secure.Token(12)
@@ -211,6 +214,13 @@ func savepoint(ctx context.Context, tx pgx.Tx, name string, fn func() error) err
 }
 
 func Register(a *app.App) {
+	platformCfg = func() core.MailConfig { return core.PlatformMail(context.Background(), a) }
+	a.SystemMail = func(ctx context.Context, to, subject, html string) error {
+		cfg := platformCfg()
+		m := &outMail{From: cfg.FromEmail, FromName: cfg.FromName, To: to, Subject: subject, HTML: html, Text: plainText(html), Headers: map[string]string{},
+			MsgID: "<setu." + secure.Token(12) + "@" + helloName(cfg.FromEmail) + ">"}
+		return sendPlatform(ctx, m)
+	}
 	registerHTTP(a)
 	registerInbox(a)
 	registerWebhooks(a)

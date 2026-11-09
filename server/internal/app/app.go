@@ -29,7 +29,10 @@ type App struct {
 	Mux chi.Router
 	api chi.Router
 
-	orgs   sync.Map // host → *orgEntry
+	orgs sync.Map // host → *orgEntry
+	// SystemMail sends a platform email (password reset, notices) with the platform mailer; set by messaging.
+	SystemMail func(ctx context.Context, to, subject, html string) error
+
 	hookMu sync.RWMutex
 	hooks  map[string][]HookFn
 	seeds  []SeedFn
@@ -43,6 +46,7 @@ type SeedFn func(ctx context.Context, tx pgx.Tx, orgID int64, s *settings.Store)
 
 func New(cfg *config.Config, d *db.DB) *App {
 	a := &App{Cfg: cfg, DB: d, Box: secure.NewBox(cfg.MasterKey), hooks: map[string][]HookFn{}}
+	Default = a
 	a.Jobs = jobs.New(d, cfg.OrgJobCap)
 	r := chi.NewRouter()
 	r.Use(recoverer, securityHeaders)
@@ -54,9 +58,11 @@ func New(cfg *config.Config, d *db.DB) *App {
 // ---------------------------------------------------------------- route registration
 
 type opts struct {
-	perm   string
-	module string
-	public bool
+	perm    string
+	module  string
+	public  bool
+	console bool // platform-admin only; works without an organisation
+	anyOrg  bool // signed in, organisation optional (me, account, logout)
 }
 
 type Opt func(*opts)
@@ -64,6 +70,12 @@ type Opt func(*opts)
 // Perm requires a permission (see Can). Module requires an enabled module ("prospecting").
 func Perm(p string) Opt   { return func(o *opts) { o.perm = p } }
 func Module(m string) Opt { return func(o *opts) { o.module = m } }
+
+// PlatformOnly: platform admins (SaaS owner) only; no organisation needed.
+func PlatformOnly() Opt { return func(o *opts) { o.console = true } }
+
+// AnyOrg: signed-in route that also works in the platform console (no organisation).
+func AnyOrg() Opt { return func(o *opts) { o.anyOrg = true } }
 
 // NoAuth: the route runs for the workspace of the host without a signed-in user.
 func NoAuth() Opt { return func(o *opts) { o.public = true } }

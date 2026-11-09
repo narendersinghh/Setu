@@ -200,6 +200,9 @@ func add(c *app.Ctx) (any, error) {
 	if name == "" {
 		name = t.Label
 	}
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "sources", 1); err != nil {
+		return nil, err
+	}
 	id, err := db.Insert(c, c.Tx(), "sources", map[string]any{"type": t.Key, "name": cut(name, 110), "token": secure.Token(16), "config": cfg})
 	if err != nil {
 		return nil, err

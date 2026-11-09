@@ -102,6 +102,12 @@ func (m *mod) campaignCreate(c *app.Ctx) (any, error) {
 			notes = append(notes, notice{"info", "You searched this before (" + agoText(*at) + "). Businesses you already have are skipped – only new ones are added, and they are checked with a free request first."})
 		}
 	}
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "searches_month", 1); err != nil {
+		return nil, err
+	}
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "leads", 1); err != nil {
+		return nil, err
+	}
 	id, err := db.Insert(c, c.Tx(), "campaigns", map[string]any{"keyword": kw, "location": loc, "limit_n": n, "source": src})
 	if err != nil {
 		return nil, err

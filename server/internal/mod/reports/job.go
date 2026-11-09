@@ -64,6 +64,9 @@ func pushReport(ctx context.Context, q db.Q, orgID, leadID int64, p payload) err
 
 // Enqueue starts writing a report for a lead (job "report"). A pending report job of the lead is replaced.
 func Enqueue(ctx context.Context, tx pgx.Tx, orgID, leadID int64, o EnqueueOpts) error {
+	if err := app.Limit(ctx, tx, orgID, "reports_month", 1); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM jobs WHERE org_id=$1 AND type=$2 AND ref_id=$3 AND status='pending'`, orgID, JobReport, leadID); err != nil {
 		return err
 	}

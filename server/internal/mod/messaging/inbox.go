@@ -138,7 +138,7 @@ type conv struct {
 // visibility: scraped businesses only with prospecting access; sales people see own + unassigned.
 func visibility(c *app.Ctx, s *settings.Store) string {
 	v := ""
-	if !(c.Can("prospecting") && s.Get("mod_prospecting", "1") == "1") {
+	if !(c.Can("prospecting") && c.Mod("prospecting")) {
 		v = " AND l.is_lead"
 	}
 	return v + c.Scope("l")

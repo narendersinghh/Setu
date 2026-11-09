@@ -147,6 +147,9 @@ func create(c *app.Ctx) (any, error) {
 		return nil, err
 	}
 	d := in.clean()
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "automations", 1); err != nil {
+		return nil, err
+	}
 	id, err := db.Insert(c, c.Tx(), "automations", d)
 	if err != nil {
 		return nil, err
@@ -215,6 +218,9 @@ func duplicate(c *app.Ctx) (any, error) {
 	name := au.Name + " (copy)"
 	if r := []rune(name); len(r) > 150 {
 		name = string(r[:150])
+	}
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "automations", 1); err != nil {
+		return nil, err
 	}
 	id, err := db.Insert(c, c.Tx(), "automations", map[string]any{"name": name, "trig": au.Trig, "trig_value": au.TrigValue,
 		"conditions": au.Conditions, "steps": au.Steps, "stop_on_reply": au.StopOnReply, "active": false})
@@ -382,6 +388,9 @@ func recipeInstall(c *app.Ctx) (any, error) {
 	conds := r.Conds
 	if conds == nil {
 		conds = []Cond{}
+	}
+	if err := c.A.CheckLimit(c, c.Tx(), c.Org.ID, "automations", 1); err != nil {
+		return nil, err
 	}
 	id, err := db.Insert(c, c.Tx(), "automations", map[string]any{"name": r.Name, "trig": r.Trig, "trig_value": r.TV,
 		"conditions": conds, "steps": r.Steps, "stop_on_reply": true, "active": false})

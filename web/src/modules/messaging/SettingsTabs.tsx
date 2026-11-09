@@ -28,7 +28,7 @@ export function EmailTab() {
   const apis = Object.fromEntries(meta.data.email_apis.map(a => [a.key, a.name]))
   const presets = Object.fromEntries(meta.data.smtp_presets.map(p => [p.key, p.name]))
   const f: FieldDef[] = [
-    ['mail_transport', 'How should Setu send email?', 'select', { api: 'Email service – just paste its API key (recommended)', smtp: 'My mailbox – Gmail, Zoho, Outlook, Hostinger, cPanel…' }],
+    ['mail_transport', 'How should Setu send email?', 'select', { default: 'Default mailer – works without any set-up', smtp: 'My own mailbox (SMTP) – Gmail, Zoho, Outlook, Hostinger, cPanel…', api: 'Email service API – Brevo, SendGrid, Mailjet…' }],
     ['mail_api', 'Email service', 'select', { '': 'Choose…', ...apis }, '', 'mail_transport=api'],
     ['mail_api_key', 'API key', 'secret', null, 'The key of the service chosen above – see "Which option?" below for where to get it, then verify your From email or domain in that account.', 'mail_transport=api'],
     ['mail_api_secret', 'Secret key (Mailjet shows it next to the API key)', 'secret', null, '', 'mail_transport=api;mail_api=mailjet'],
@@ -53,7 +53,7 @@ export function EmailTab() {
   const test = async (k: string, url: string, body: object = {}) => { setBusy(k); await run(url, body); setBusy('') }
   const imap = s.data?.imap_host
   return <>
-    <SettingsForm fields={f} defaults={{ mail_transport: 'api', smtp_provider: 'custom', smtp_port: '465', smtp_secure: 'ssl', imap_on: '0', imap_port: '993' }}
+    <SettingsForm fields={f} defaults={{ mail_transport: 'default', smtp_provider: 'custom', smtp_port: '465', smtp_secure: 'ssl', imap_on: '0', imap_port: '993' }}
       onSaved={() => qc.invalidateQueries({ queryKey: ['meta-messaging'] })}
       extra={<>
         <span className="row nw" style={{ gap: 6, marginLeft: 'auto' }}>
@@ -66,7 +66,7 @@ export function EmailTab() {
       <ul className="ul mt0">
         <li><b>Email service (recommended)</b> – create a free account at Brevo, SendGrid, Mailjet, Postmark, Resend, ZeptoMail, Mailgun, SMTP2GO or Elastic Email, verify your domain or From email there, copy its <b>API key</b> and paste it here. Nothing else to set up.</li>
         <li><b>My mailbox</b> – sends from your Gmail, Zoho, Outlook, Hostinger or cPanel mailbox: enter the From email and its password (Gmail/Zoho need an app password).</li>
-        <li><b>Why no "PHP mail"?</b> – Setu now runs as a cloud service without a local mail program, so emails go through your email service or your own mailbox. This also gives much better delivery.</li>
+        <li><b>Default mailer</b> – emails go out right away with your company name, and replies come to your company email. For the best delivery and to send from your own address, connect your mailbox (SMTP) or an email service.</li>
       </ul>
       <p className="sm muted">Where to get the API key:</p>
       <ul className="ul sm">{meta.data.email_apis.map(a => <li key={a.key}><b>{a.name}</b> – {a.paste}: <a className="lnk" target="_blank" rel="noopener noreferrer" href={a.url}>Get your key ↗</a></li>)}</ul>

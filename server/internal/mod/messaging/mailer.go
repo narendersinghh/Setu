@@ -78,16 +78,27 @@ func smtpPreset(k string) *SMTPPreset {
 	return nil
 }
 
-// mailMode: "api" (email service) or "smtp" (mailbox). PHP mail() does not exist in v2 – an old "php"
-// value (imported from v1) counts as "api" so the user is asked to connect a service.
-func mailMode(s *settings.Store) string {
+// ownMode: the organisation's own set-up – "api" (email service) or "smtp" (mailbox).
+func ownMode(s *settings.Store) string {
 	if s.Get("mail_transport", "") == "smtp" {
 		return "smtp"
 	}
 	return "api"
 }
 
+// mailMode: the organisation's own SMTP / email service when it is set up, otherwise "platform" – the
+// platform mailer (sendmail like PHP mail, or the platform's SMTP mailbox) used by default.
+func mailMode(s *settings.Store) string {
+	if t := s.Get("mail_transport", ""); (t == "smtp" || t == "api") && ownMailReady(s) {
+		return ownMode(s)
+	}
+	return "platform"
+}
+
 func mailLabel(s *settings.Store) string {
+	if mailMode(s) == "platform" {
+		return "the default mailer"
+	}
 	if mailMode(s) == "smtp" {
 		return "SMTP"
 	}
@@ -100,7 +111,10 @@ func mailLabel(s *settings.Store) string {
 func smtpUser(s *settings.Store) string { return s.Get("smtp_user", s.Get("from_email", "")) }
 
 func mailFrom(s *settings.Store) string {
-	if mailMode(s) == "smtp" {
+	if mailMode(s) == "platform" {
+		return platformCfg().FromEmail
+	}
+	if ownMode(s) == "smtp" {
 		return s.Get("from_email", s.Get("smtp_user", ""))
 	}
 	return s.Get("from_email", "")
@@ -125,9 +139,12 @@ func smtpConfig(s *settings.Store) (host, port, sec string) {
 	return host, p.Port, p.Secure
 }
 
-// MailReady reports whether email sending is set up (v1 Mailer::ready).
-func MailReady(s *settings.Store) bool {
-	if mailMode(s) == "smtp" {
+// MailReady reports whether email can be sent. The platform mailer is always there as the default.
+func MailReady(s *settings.Store) bool { return true }
+
+// ownMailReady reports whether the organisation set up its own email (v1 Mailer::ready).
+func ownMailReady(s *settings.Store) bool {
+	if ownMode(s) == "smtp" {
 		h, _, _ := smtpConfig(s)
 		return h != "" && smtpUser(s) != "" && mailFrom(s) != ""
 	}
@@ -149,15 +166,19 @@ type outMail struct {
 }
 
 func newOutMail(s *settings.Store, to, subject, htmlBody, text string) *outMail {
-	return &outMail{From: mailFrom(s), FromName: fromName(s), To: to, ReplyTo: s.Get("reply_to", ""), Bcc: s.Get("bcc_email", ""),
+	rt := s.Get("reply_to", "")
+	if rt == "" && mailMode(s) == "platform" {
+		rt = s.Get("from_email", s.Get("company_email", "")) // replies reach the organisation, not the platform
+	}
+	return &outMail{From: mailFrom(s), FromName: fromName(s), To: to, ReplyTo: rt, Bcc: s.Get("bcc_email", ""),
 		Subject: subject, HTML: htmlBody, Text: text, Headers: map[string]string{}}
 }
 
 // deliver sends through the configured transport. Returns the provider's id (or our Message-ID for SMTP)
 // and the usage op name.
 func deliver(ctx context.Context, s *settings.Store, m *outMail) (string, string, error) {
-	if !MailReady(s) {
-		return "", "", errors.New("Email is not set up yet – Settings → Messaging → Email.")
+	if mailMode(s) == "platform" {
+		return m.MsgID, "platform", sendPlatform(ctx, m)
 	}
 	if mailMode(s) == "smtp" {
 		return m.MsgID, "smtp", sendSMTP(ctx, s, m)

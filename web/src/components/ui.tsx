@@ -1,7 +1,9 @@
-// Shared UI kit – markup and class names follow the v1 design (styles/app.css).
-import { ReactNode, useEffect, useState, MouseEvent, InputHTMLAttributes, useRef } from 'react'
+// Shared UI kit – v1 markup and class names (styles/app.css) restyled by the v2 design tokens,
+// plus v2 components: Avatar, Trend, Progress, Donut, AreaChart, Skeleton, EmptyState.
+import { ReactNode, useEffect, useState, MouseEvent, InputHTMLAttributes, useRef, useId, useMemo, PointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ICONS } from './icons'
+import { brandName } from '@/lib/theme'
 
 export function Icon({ n, c = '' }: { n: string; c?: string }) {
   return <svg className={'ic ' + c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[n] || '' }} />
@@ -51,7 +53,7 @@ export function Alert({ t = 'info', children }: { t?: 'ok' | 'err' | 'info' | 'w
 export function Spinner() { return <div className="empty sm"><span className="spin" /></div> }
 
 export function Empty({ ic = 'list', title, children }: { ic?: string; title: string; children?: ReactNode }) {
-  return <div className="empty"><Hi n={ic} c="gray" lg /><h3>{title}</h3>{children && <p className="muted">{children}</p>}</div>
+  return <div className="empty"><Hi n={ic} c="indigo" lg /><h3>{title}</h3>{children && <p className="muted">{children}</p>}</div>
 }
 
 export function Modal({ open, onClose, title, ic, c = 'indigo', children, footer, size }: { open: boolean; onClose: () => void; title: ReactNode; ic?: string; c?: string; children: ReactNode; footer?: ReactNode; size?: 'lg' | 'xl' }) {
@@ -115,12 +117,12 @@ export async function act<T>(fn: () => Promise<T>, ok?: string): Promise<T | und
 export function confirmDo(msg: string) { return window.confirm(msg) }
 
 /** Latest page title (the layout may mount its listener after the page announced it). */
-export let lastTitle = { title: 'Setu', subtitle: '' }
+export let lastTitle = { title: '', subtitle: '' }
 
 /** Page header (title & subtitle shown in the top bar). */
 export function usePageTitle(title: string, subtitle = '') {
   useEffect(() => {
-    document.title = title + ' · Setu'
+    document.title = title + ' · ' + brandName
     lastTitle = { title, subtitle }
     window.dispatchEvent(new CustomEvent('setu:title', { detail: lastTitle }))
   }, [title, subtitle])
@@ -147,4 +149,139 @@ export function useSelection<T extends number | string>() {
     all: (ids: T[], on: boolean) => setSel(on ? new Set(ids) : new Set()),
     clear: () => setSel(new Set()),
   }
+}
+
+// ================================================================== v2 components
+
+const AVC = ['indigo', 'violet', 'blue', 'sky', 'teal', 'green', 'amber', 'orange', 'rose', 'pink']
+/** Stable colour family for a name. */
+export function nameColor(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVC[h % AVC.length] }
+
+/** Round avatar with initials (or an image). */
+export function Avatar({ name, src, size = 36, c }: { name: string; src?: string; size?: number; c?: string }) {
+  const parts = (name || '?').trim().split(/\s+/)
+  const ini = ((parts[0]?.[0] || '?') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
+  const st = { width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.38)) }
+  if (src) return <img className="avt" src={src} alt="" style={st} />
+  return <span className={'avt c-' + (c || nameColor(name || '?'))} style={st} aria-hidden="true">{ini}</span>
+}
+
+/** Trend pill: +12% (green), -3% (red), 0 (grey). */
+export function Trend({ v, suffix = '%', label }: { v: number; suffix?: string; label?: ReactNode }) {
+  const k = v > 0 ? 'up' : v < 0 ? 'dn' : 'flat'
+  return <span className={'trend ' + k}>{k !== 'flat' && <Icon n={k === 'up' ? 'trendUp' : 'trendDn'} />}{v > 0 ? '+' : ''}{Number.isFinite(v) ? v : 0}{suffix}{label && <em>{label}</em>}</span>
+}
+
+/** Labelled progress bar. c = colour family. */
+export function Progress({ value, max = 100, c = 'indigo', label, sub }: { value: number; max?: number; c?: string; label?: ReactNode; sub?: ReactNode }) {
+  const pc = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0
+  return <div className={'prgs c-' + c}>
+    {(label || sub) && <div className="prgs-h"><span>{label}</span><small>{sub}</small></div>}
+    <div className="prgs-t" role="progressbar" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}><i style={{ width: pc + '%' }} /></div>
+  </div>
+}
+
+export interface Slice { label: string; value: number; c: string; to?: string }
+/** Donut chart (SVG). Colours come from the colour families (c-green …) so they follow the theme. */
+export function Donut({ data, size = 168, thick = 20, center, legend = true }: { data: Slice[]; size?: number; thick?: number; center?: ReactNode; legend?: boolean }) {
+  const total = data.reduce((a, b) => a + Math.max(0, b.value), 0)
+  const r = (size - thick) / 2, C = 2 * Math.PI * r
+  const gap = data.filter(d => d.value > 0).length > 1 ? Math.min(6, C * 0.012) : 0
+  let off = 0
+  return <div className="donut">
+    <div className="donut-c" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={data.map(d => d.label + ' ' + d.value).join(', ')}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="donut-bg" strokeWidth={thick} />
+        {total > 0 && data.map(d => {
+          if (d.value <= 0) return null
+          const len = (d.value / total) * C
+          const seg = <circle key={d.label} className={'donut-s c-' + d.c} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={thick} strokeLinecap="butt"
+            strokeDasharray={`${Math.max(0.5, len - gap)} ${C}`} strokeDashoffset={-off} transform={`rotate(-90 ${size / 2} ${size / 2})`}><title>{d.label}: {d.value}</title></circle>
+          off += len
+          return seg
+        })}
+      </svg>
+      {center !== undefined && <div className="donut-m">{center}</div>}
+    </div>
+    {legend && <div className="legend">{data.map(d => {
+      const inner = <><i /><span>{d.label}</span><b>{d.value}</b></>
+      return d.to ? <Link key={d.label} to={d.to} className={'c-' + d.c}>{inner}</Link> : <div key={d.label} className={'c-' + d.c}>{inner}</div>
+    })}</div>}
+  </div>
+}
+
+export interface Point { label: string; value: number; hint?: string }
+/** Smooth area chart (SVG) with hover read-out. */
+export function AreaChart({ data, height = 220, fmt = (n: number) => String(n), c = 'indigo' }: { data: Point[]; height?: number; fmt?: (n: number) => string; c?: string }) {
+  const id = useId().replace(/:/g, '')
+  const [hov, setHov] = useState<number | null>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const [W, setW] = useState(640)
+  useEffect(() => {
+    const el = box.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(e => { const w = Math.round(e[0].contentRect.width); if (w > 0) setW(w) })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const H = height, P = { l: 34, r: 12, t: 14, b: 26 }
+  const max = Math.max(4, ...data.map(d => d.value))
+  const nice = useMemo(() => { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))); const step = ([1, 2, 5, 10].find(x => x * p >= raw) || 10) * p; return Math.max(4, step * 4) }, [max])
+  const x = (i: number) => P.l + (data.length <= 1 ? (W - P.l - P.r) / 2 : (i * (W - P.l - P.r)) / (data.length - 1))
+  const y = (v: number) => P.t + (H - P.t - P.b) * (1 - v / nice)
+  const pts = data.map((d, i) => [x(i), y(d.value)] as const)
+  // Catmull-Rom → cubic Bézier for a smooth line
+  let line = ''
+  pts.forEach((p, i) => {
+    if (!i) { line = `M${p[0]},${p[1]}`; return }
+    const p0 = pts[i - 2] || pts[i - 1], p1 = pts[i - 1], p2 = p, p3 = pts[i + 1] || p
+    const t = 0.18
+    const c1 = [p1[0] + (p2[0] - p0[0]) * t, Math.min(y(0), p1[1] + (p2[1] - p0[1]) * t)]
+    const c2 = [p2[0] - (p3[0] - p1[0]) * t, Math.min(y(0), p2[1] - (p3[1] - p1[1]) * t)]
+    line += ` C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`
+  })
+  const area = pts.length ? `${line} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z` : ''
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => nice * f)
+  const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(W / 80))))
+  const move = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const px = ((e.clientX - r.left) / r.width) * W
+    let best = 0, bd = Infinity
+    pts.forEach((p, i) => { const d = Math.abs(p[0] - px); if (d < bd) { bd = d; best = i } })
+    setHov(best)
+  }
+  const h = hov !== null ? data[hov] : null
+  return <div className={'area c-' + c} ref={box}>
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} onPointerMove={move} onPointerLeave={() => setHov(null)} role="img" aria-label={data.map(d => d.label + ': ' + fmt(d.value)).join(', ')}>
+      <defs><linearGradient id={'ag' + id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="area-s0" /><stop offset="1" className="area-s1" /></linearGradient></defs>
+      {ticks.map(t => <g key={t}><line className="area-g" x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} /><text className="area-y" x={P.l - 8} y={y(t) + 3.5} textAnchor="end">{fmt(Math.round(t))}</text></g>)}
+      {area && <path d={area} fill={`url(#ag${id})`} />}
+      {line && <path d={line} className="area-l" fill="none" vectorEffect="non-scaling-stroke" />}
+      {data.map((d, i) => (i % every === 0 && data.length - 1 - i >= every * 0.6) || i === data.length - 1 ? <text key={i} className="area-x" x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}>{d.label}</text> : null)}
+      {hov !== null && <g><line className="area-h" x1={pts[hov][0]} x2={pts[hov][0]} y1={P.t} y2={y(0)} vectorEffect="non-scaling-stroke" /></g>}
+    </svg>
+    {hov !== null && h && <>
+      <span className="area-d" style={{ left: (pts[hov][0] / W) * 100 + '%', top: (pts[hov][1] / H) * 100 + '%' }} />
+      <div className={'area-t' + (pts[hov][0] / W > 0.7 ? ' l' : '')} style={{ left: (pts[hov][0] / W) * 100 + '%', top: (pts[hov][1] / H) * 100 + '%' }}><b>{fmt(h.value)}</b><small>{h.hint || h.label}</small></div>
+    </>}
+  </div>
+}
+
+/** Loading placeholder block. */
+export function Skeleton({ h = 14, w = '100%', r, className = '' }: { h?: number | string; w?: number | string; r?: number | string; className?: string }) {
+  return <span className={'skel ' + className} style={{ height: h, width: w, borderRadius: r }} aria-hidden="true" />
+}
+
+/** Empty state with a small illustration. */
+export function EmptyState({ title, children, action, ic = 'inbox' }: { title: string; children?: ReactNode; action?: ReactNode; ic?: string }) {
+  return <div className="empty es">
+    <svg className="es-i" viewBox="0 0 160 110" aria-hidden="true">
+      <ellipse cx="80" cy="98" rx="58" ry="7" className="es-sh" />
+      <rect x="30" y="22" width="100" height="68" rx="14" className="es-b" />
+      <rect x="44" y="38" width="44" height="8" rx="4" className="es-l" /><rect x="44" y="54" width="72" height="6" rx="3" className="es-l2" /><rect x="44" y="66" width="56" height="6" rx="3" className="es-l2" />
+      <circle cx="122" cy="26" r="16" className="es-a" /><path d="M115 26h14M122 19v14" className="es-p" />
+    </svg>
+    <span className="es-ic"><Icon n={ic} /></span>
+    <h3>{title}</h3>{children && <p className="muted">{children}</p>}{action}
+  </div>
 }
