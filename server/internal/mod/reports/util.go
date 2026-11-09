@@ -27,7 +27,7 @@ func asJ(v any) J {
 	return J{}
 }
 
-func (j J) M(k string) J     { return asJ(j[k]) }
+func (j J) M(k string) J      { return asJ(j[k]) }
 func (j J) S(k string) string { return str(j[k]) }
 func (j J) N(k string) float64 {
 	return num(j[k])
@@ -86,7 +86,7 @@ func str(v any) string {
 
 var nonNum = regexp.MustCompile(`[^\d.]`)
 
-// num mirrors v1 (float)preg_replace('/[^\d.]/','',$v): "1,900" → 1900.
+// num mirrors v1 (float)preg_replace('/[^\d.]/',”,$v): "1,900" → 1900.
 func num(v any) float64 {
 	if f, ok := v.(float64); ok {
 		return math.Abs(f)
@@ -195,7 +195,7 @@ func safeURL(u string) string {
 
 var schemeRe = regexp.MustCompile(`(?i)^https?://`)
 
-// bareHost strips the scheme and a trailing slash (v1 preg_replace('~^https?://|/$~','',$u)).
+// bareHost strips the scheme and a trailing slash (v1 preg_replace('~^https?://|/$~',”,$u)).
 func bareHost(u string) string {
 	return strings.TrimSuffix(schemeRe.ReplaceAllString(strings.TrimSpace(u), ""), "/")
 }

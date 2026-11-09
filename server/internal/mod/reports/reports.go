@@ -3,6 +3,7 @@
 package reports
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"os"
@@ -391,7 +392,7 @@ func uploadAssets(c *app.Ctx) (any, error) {
 		if ext == ".svg" && svgBad.Match(data) {
 			continue
 		}
-		p, err := core.SaveFile(c, c.A, c.Org.ID, fh.Filename, strings.NewReader(string(data)), 10<<20)
+		p, err := core.SaveFile(c, c.A, c.Org.ID, fh.Filename, bytes.NewReader(data), 10<<20)
 		if err != nil {
 			return nil, err
 		}

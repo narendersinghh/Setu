@@ -282,16 +282,16 @@ func Render(in *RenderIn) string {
 	for i, x := range F[:min(3, len(F))] {
 		top += `<div class="tp" style="--c:` + col(x.S("area")) + `"><span class="n">` + strconv.Itoa(i+1) + `</span><div><b>` + t(x.S("title"), 60) + `</b><p>` + t(x.S("why"), 150) + `</p></div></div>`
 	}
-	str := ""
+	strs := ""
 	for _, s := range first(d.Strings("strengths"), 3) {
-		str += `<li>` + t(s, 60) + `</li>`
+		strs += `<li>` + t(s, 60) + `</li>`
 	}
 	b := `<div class="g g2"><div class="lead">` + sum
 	if missed > 0 && rev > 0 {
 		b += `<div class="g g2 tight"><div class="tile bad"><span>Missed enquiries</span><b>~` + strconv.Itoa(missed) + ` / month</b><small>realistic gap today</small></div><div class="tile acc"><span>Revenue at stake</span><b>` + money(rev) + `</b><small>per year (estimate)</small></div></div>`
 	}
-	if str != "" {
-		b += `<div class="good"><span class="lbl ok">Already working</span><ul>` + str + `</ul></div>`
+	if strs != "" {
+		b += `<div class="good"><span class="lbl ok">Already working</span><ul>` + strs + `</ul></div>`
 	}
 	b += `</div><div><span class="lbl bad">The 3 problems costing you most</span>` + top + `</div></div>`
 	o.WriteString(slide("Executive summary", "What is holding "+l.Name+" back", "", b, ""))

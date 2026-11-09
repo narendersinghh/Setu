@@ -103,9 +103,9 @@ func TestAnthropicStreamWithWebSearch(t *testing.T) {
 	if len(tools) != 1 || tools[0].(map[string]any)["type"] != "web_search_20260209" || tools[0].(map[string]any)["max_uses"].(float64) != 3 {
 		t.Fatalf("bad tools %v", got.body["tools"])
 	}
-	if got.body["fallbacks"] == "default" {
-		t.Fatal("sonnet-5-5 uses the server-side fallback")
-	} // (sonnet-5-5 matches the fallback rule)
+	if got.body["fallbacks"] != "default" || got.header.Get("anthropic-beta") != "server-side-fallback-2026-07-01" {
+		t.Fatal("claude-sonnet-5-5 asks for the server-side refusal fallback")
+	}
 	if r.Text != "Hello world" || streamed.String() != "Hello world" {
 		t.Fatalf("text %q streamed %q", r.Text, streamed.String())
 	}

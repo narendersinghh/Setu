@@ -20,7 +20,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 
 	"github.com/narendersinghh/setu/server/internal/netx"
-	"github.com/narendersinghh/setu/server/internal/settings"
 )
 
 var (
@@ -182,6 +181,9 @@ type AuditLead struct {
 	Raw                                                        PlaceRaw
 }
 
+// getter reads settings (the workspace store, or a map in tests).
+type getter interface{ Get(k, def string) string }
+
 type progressFn func(pct int, msg string) error
 
 var (
@@ -211,7 +213,7 @@ var (
 )
 
 // auditWebsite runs the ~45 website checks in 8 areas.
-func auditWebsite(ctx context.Context, s *settings.Store, site string, P progressFn, l AuditLead) (*Result, error) {
+func auditWebsite(ctx context.Context, s getter, site string, P progressFn, l AuditLead) (*Result, error) {
 	var ch checks
 	m := map[string]any{}
 	if err := P(5, "Opening the website"); err != nil {
@@ -737,7 +739,7 @@ var pagespeedURL = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 // pageSpeedTrack is set by the job to record usage.
 type pageSpeedCtxKey struct{}
 
-func pageSpeed(ctx context.Context, s *settings.Store, u string) *PageSpeed {
+func pageSpeed(ctx context.Context, s getter, u string) *PageSpeed {
 	q := url.Values{"url": {u}, "strategy": {"mobile"}, "category": {"performance"}}
 	if k := s.Get("google_api_key", ""); k != "" {
 		q.Set("key", k)

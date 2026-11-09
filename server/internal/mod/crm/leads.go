@@ -29,7 +29,6 @@ func registerLeads(a *app.App) {
 	a.Post("/leads/{id}/tags", leadTag, p)
 	a.Post("/leads/{id}/won", leadWon, p)
 	a.Post("/leads/{id}/lost", leadLost, p)
-	a.Post("/leads/{id}/replied", leadReplied, p)
 	a.Post("/leads/{id}/promote", leadPromote, app.Perm("prospecting"), app.Module("prospecting"))
 	a.Get("/meta/crm", meta, p)
 	a.Get("/events", activity, app.Perm("dashboard"))
@@ -656,47 +655,6 @@ func leadPromote(c *app.Ctx) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"ok": true, "message": "Moved to Leads."}, Promote(c, c.A, c.Tx(), c.Org.ID, l.ID, "new")
-}
-
-// leadReplied logs a reply by hand (v1 Outreach::markReplied); emits "replied".
-func leadReplied(c *app.Ctx) (any, error) {
-	l, err := loadLead(c, c.ParamID("id"))
-	if err != nil {
-		return nil, err
-	}
-	var in struct {
-		Via string `json:"via"`
-		Msg string `json:"msg"`
-	}
-	if err := c.Bind(&in); err != nil {
-		return nil, err
-	}
-	switch in.Via {
-	case "email", "whatsapp", "call", "other":
-	default:
-		in.Via = "other"
-	}
-	if l.RepliedAt != nil {
-		return map[string]any{"ok": true, "message": "A reply was already logged for this lead."}, nil
-	}
-	tx := c.Tx()
-	if _, err := tx.Exec(c, `UPDATE leads SET replied_at=now(), replied_via=$2, stage='replied' WHERE id=$1`, l.ID, in.Via); err != nil {
-		return nil, err
-	}
-	msg := "Replied via " + in.Via
-	if m := strings.TrimSpace(in.Msg); m != "" {
-		msg += ": " + cut(m, 300)
-	}
-	if err := app.Event(c, tx, l.ID, "replied", msg, in.Via, nil); err != nil {
-		return nil, err
-	}
-	if c.S().Get("promote_on_reply", "0") == "1" {
-		if err := Promote(c, c.A, tx, c.Org.ID, l.ID, "contacted"); err != nil {
-			return nil, err
-		}
-	}
-	c.A.Emit(c, tx, c.Org.ID, "replied", l.ID, map[string]any{"via": in.Via})
-	return map[string]any{"ok": true, "message": "Reply logged."}, nil
 }
 
 // ---------------------------------------------------------------- bulk

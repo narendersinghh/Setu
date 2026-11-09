@@ -50,7 +50,7 @@ func fontAssets() []pdf.Asset {
 
 var fontNameRe = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
-// fontName sanitises a font family / file name (v1 preg_replace('/[^a-z0-9_-]/i','',$n)).
+// fontName sanitises a font family / file name (v1 preg_replace('/[^a-z0-9_-]/i',”,$n)).
 func fontName(n string) string { return fontNameRe.ReplaceAllString(strings.TrimSpace(n), "") }
 
 func fontDir(a *app.App, orgID int64) string {
