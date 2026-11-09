@@ -648,7 +648,9 @@ func auditWebsite(ctx context.Context, s *settings.Store, site string, P progres
 var w3Re = regexp.MustCompile(`(?i)(src|href)=["']http://www\.w3\.org`)
 
 // hasMixed: an http:// src/href that is not an http://www.w3.org namespace (RE2 has no lookahead).
-func hasMixed(h string) bool { return len(mixedRe.FindAllString(h, -1)) > len(w3Re.FindAllString(h, -1)) }
+func hasMixed(h string) bool {
+	return len(mixedRe.FindAllString(h, -1)) > len(w3Re.FindAllString(h, -1))
+}
 
 func firstOr(a []string) string {
 	if len(a) == 0 {
@@ -830,4 +832,3 @@ func auditMap(l AuditLead, comp []Competitor) *Result {
 	}
 	return &Result{Score: score(ch), Checks: ch, Cats: catScores(ch, mapCats), Meta: map[string]any{"rating": rating, "reviews": rev, "photos": ph, "position": l.Position, "competitor_avg_reviews": avgRev, "competitor_avg_rating": avgRat}}
 }
-

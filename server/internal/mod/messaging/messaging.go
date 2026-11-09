@@ -87,9 +87,7 @@ func SendEmail(ctx context.Context, a *app.App, orgID int64, s *settings.Store, 
 		m.Headers["References"] = strings.TrimSpace(refs + " " + e.InReplyTo)
 	}
 	for _, f := range e.Attachments {
-		if len(f.Data) == 0 && strings.HasPrefix(f.URL, "/files/") {
-			f.Data, _ = readLocalFile(a, f.URL)
-		}
+		f = fillAttachment(ctx, a, orgID, f)
 		if len(f.Data) > 0 {
 			m.Files = append(m.Files, f)
 		}
@@ -151,7 +149,7 @@ type WhatsApp struct {
 func SendWhatsApp(ctx context.Context, a *app.App, orgID int64, s *settings.Store, w WhatsApp) (int64, string, error) {
 	var files []Attachment
 	if w.Attachment != nil {
-		files = []Attachment{*w.Attachment}
+		files = []Attachment{fillAttachment(ctx, a, orgID, *w.Attachment)}
 	}
 	return sendWA(ctx, a, orgID, s, w.LeadID, w.Phone, w.Text, files)
 }

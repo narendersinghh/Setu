@@ -5,10 +5,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/narendersinghh/setu/server/internal/app"
 	"github.com/narendersinghh/setu/server/internal/db"
@@ -111,4 +114,44 @@ func loadReportPDF(ctx context.Context, a *app.App, r *reportRow) []byte {
 		return res.Body
 	}
 	return nil
+}
+
+var reportURLRe = regexp.MustCompile(`^/r/([A-Za-z0-9]+)\.pdf$`)
+
+// fillAttachment loads Data for an attachment given only by URL: /files/… uploads and /r/{token}.pdf
+// reports are read from this server (relative or with the app address); other URLs are left as they are.
+// A relative URL is made absolute so WhatsApp providers can fetch it.
+func fillAttachment(ctx context.Context, a *app.App, orgID int64, f Attachment) Attachment {
+	base := a.Cfg.AppURL()
+	p := f.URL
+	if strings.HasPrefix(p, base+"/") {
+		p = strings.TrimPrefix(p, base)
+	}
+	if len(f.Data) == 0 && strings.HasPrefix(p, "/") {
+		if strings.HasPrefix(p, "/files/") {
+			f.Data, _ = readLocalFile(a, p)
+		} else if m := reportURLRe.FindStringSubmatch(p); m != nil {
+			var r *reportRow
+			a.DB.Org(ctx, orgID, func(tx pgx.Tx) error {
+				x, err := db.One[reportRow](ctx, tx, `SELECT id,token,pdf FROM reports WHERE token=$1`, m[1])
+				if err == nil {
+					r = &x
+				}
+				return nil
+			})
+			if r != nil {
+				f.Data = loadReportPDF(ctx, a, r)
+			}
+		}
+	}
+	if strings.HasPrefix(f.URL, "/") {
+		f.URL = base + f.URL
+	}
+	if f.Name == "" {
+		f.Name = path.Base(p)
+	}
+	if f.Mime == "" && strings.HasSuffix(strings.ToLower(f.Name), ".pdf") {
+		f.Mime = "application/pdf"
+	}
+	return f
 }

@@ -161,7 +161,6 @@ func connFor(s *settings.Store, p, appURL string) (conn, error) {
 
 // Model prices in USD per 1M tokens [input, output] (v1 Usage::modelPrices). Overridable per workspace
 // in the setting usage_prices {"_models":{"model":{"in":x,"out":y}}} (edited on the usage page).
-// TODO(usage): switch to usage.AIPrice(s, model) once the usage module exports it.
 var modelPrices = map[string][2]float64{
 	"claude-opus-5-5": {4, 20}, "claude-opus-5": {5, 25}, "claude-sonnet-5-5": {2, 10}, "claude-sonnet-5": {2, 10},
 	"claude-haiku-5-5": {0.10, 0.50}, "claude-fable-5-1": {10, 50},
@@ -191,8 +190,17 @@ func overrides(s *settings.Store) priceOverride {
 	return o
 }
 
+// PriceFunc, when set, is the price table of the usage module (usage imports ai, so it plugs itself in:
+// ai.PriceFunc = usage.AIPrice in usage.Register). A 0/0 answer falls back to the table below.
+var PriceFunc func(s *settings.Store, model string) (inPerM, outPerM float64)
+
 // Price returns the USD price per 1M input / output tokens of a model.
 func Price(s *settings.Store, model string) (in, out float64, ok bool) {
+	if PriceFunc != nil && s != nil {
+		if i, o := PriceFunc(s, model); i > 0 || o > 0 {
+			return i, o, true
+		}
+	}
 	o := overrides(s)
 	short := model
 	if i := strings.LastIndexByte(model, '/'); i >= 0 {

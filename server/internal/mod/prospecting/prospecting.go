@@ -29,7 +29,7 @@ var defaults = map[string]string{
 	"maps_source": "places", "maps_skip_existing": "1", "maps_atmosphere": "0", "maps_language": "en", "maps_region": "in",
 	"default_country_code": "91", "pagespeed": "0", "deep_crawl": "1",
 	"yearly_fee": "72000", "website_fee": "25000",
-	"services": "Local SEO & Google Business Profile optimisation\nGoogle Maps ranking (top 3 local pack)\nOn-page SEO & technical fixes\nReview generation system\nWebsite design & speed optimisation\nMonthly performance reports",
+	"services":     "Local SEO & Google Business Profile optimisation\nGoogle Maps ranking (top 3 local pack)\nOn-page SEO & technical fixes\nReview generation system\nWebsite design & speed optimisation\nMonthly performance reports",
 	"auto_contact": "1", "send_email": "1", "send_whatsapp": "1", "send_gap": "90", "daily_limit": "60", "skip_contacted": "1", "promote_on_reply": "0",
 }
 

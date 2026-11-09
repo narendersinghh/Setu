@@ -23,7 +23,9 @@ import (
 )
 
 // imapOn: replies are read from the inbox (setting imap_on=1 and a server).
-func imapOn(s *settings.Store) bool { return s.Get("imap_on", "0") == "1" && s.Get("imap_host", "") != "" }
+func imapOn(s *settings.Store) bool {
+	return s.Get("imap_on", "0") == "1" && s.Get("imap_host", "") != ""
+}
 
 func imapLogin(s *settings.Store) (string, string) {
 	return s.Get("imap_user", s.Get("smtp_user", s.Get("from_email", ""))), s.Get("imap_pass", s.Get("smtp_pass", ""))

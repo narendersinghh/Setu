@@ -571,7 +571,7 @@ func graphLead(ctx context.Context, token string, e fbEntry) (fetched, error) {
 		return fetched{}, fmt.Errorf("Meta lead fetch failed: %v", err)
 	}
 	if r.Code != 200 {
-		return fetched{}, fmt.Errorf("Meta lead fetch failed: %s", cut(string(r.Body), 300))
+		return fetched{}, fmt.Errorf("Meta lead fetch failed: %s", cut(strings.Join(strings.Fields(string(r.Body)), " "), 300))
 	}
 	var d struct {
 		FieldData []struct {
