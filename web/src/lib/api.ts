@@ -18,7 +18,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const ct = res.headers.get('content-type') || ''
   const data = ct.includes('json') ? await res.json().catch(() => ({})) : await res.text()
   if (!res.ok) {
-    if (res.status === 401 && !location.pathname.startsWith('/login') && !location.pathname.startsWith('/signup')) {
+    if (res.status === 401 && !/^\/(login|signup|forgot|reset)/.test(location.pathname)) {
       location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search)
     }
     throw new ApiError(res.status, (data && (data as any).error) || 'Request failed (' + res.status + ')')

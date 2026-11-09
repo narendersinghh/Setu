@@ -32,7 +32,7 @@ export const DEFAULT_BRAND: Brand = {
   font_body: 'Inter',
   colors: { primary: '#C21F3A', accent: '#FFD60A', success: '#6BA539', warning: '#F59E0B', danger: '#E5484D', info: '#3B82F6' },
   radius: 16,
-  theme_default: 'light',
+  theme_default: 'system',
   signup: true,
 }
 
@@ -139,7 +139,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       .then(raw => { if (!off) { setBrand(merge(raw)); setLoaded(true) } })
     return () => { off = true }
   }, [])
-  useEffect(() => { applyBrand(brand) }, [brand])
+  useEffect(() => { applyBrand(brand); if (loaded) try { localStorage.setItem(KEY + '-def', brand.theme_default) } catch { /* ignore */ } }, [brand, loaded])
   useEffect(() => {
     if (typeof matchMedia !== 'function') return
     const mq = matchMedia('(prefers-color-scheme: dark)')
