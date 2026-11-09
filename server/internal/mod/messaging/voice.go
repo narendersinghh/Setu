@@ -84,6 +84,9 @@ func startCall(ctx context.Context, a *app.App, orgID int64, s *settings.Store, 
 		vars map[string]string
 	)
 	err := a.DB.Org(ctx, orgID, func(tx pgx.Tx) error {
+		if err := a.CheckLimit(ctx, tx, orgID, "calls_month", 1); err != nil {
+			return err
+		}
 		var err error
 		if l, err = shared.GetLead(ctx, tx, c.LeadID); err != nil || l.Phone == "" {
 			return errors.New("No phone number")

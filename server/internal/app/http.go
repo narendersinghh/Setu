@@ -123,6 +123,12 @@ func (a *App) run(c *Ctx, h Handler, o opts) (res any, err error) {
 		if err := a.loadSession(c); err != nil {
 			return nil, err
 		}
+		if o.console && !c.User.PlatformAdmin {
+			return nil, Forbidden()
+		}
+		if c.Org == nil && !o.console && !o.anyOrg {
+			return nil, Err(http.StatusConflict, "Open a workspace first (Platform console → Organisations).")
+		}
 		if c.R.Method != http.MethodGet && c.R.Method != http.MethodHead && !secure.Equal(c.R.Header.Get("X-CSRF"), c.CSRF) {
 			return nil, Err(419, "Session expired. Refresh the page.")
 		}
@@ -130,7 +136,7 @@ func (a *App) run(c *Ctx, h Handler, o opts) (res any, err error) {
 			return nil, Forbidden()
 		}
 		if o.module != "" && !c.Mod(o.module) {
-			return nil, Err(http.StatusForbidden, "The "+o.module+" module is switched off. A super admin can switch it on under Modules.")
+			return nil, Err(http.StatusForbidden, "Your plan does not include the "+o.module+" module. Contact us to upgrade your plan.")
 		}
 	}
 	return h(c)
@@ -145,20 +151,24 @@ func (a *App) loadSession(c *Ctx) error {
 	sid := secure.SHA256(ck.Value)
 	type row struct {
 		User
-		OrgID   int64     `db:"org_id"`
+		OrgID   *int64    `db:"org_id"`
+		Member  bool      `db:"member"`
 		CSRF    string    `db:"csrf"`
 		Expires time.Time `db:"expires_at"`
 	}
-	// One address for everyone (like Zoho): the workspace comes from the session. On a custom
-	// domain the session must belong to that domain's workspace.
-	s, err := db.One[row](c, a.DB.Pool, `SELECT u.id,u.name,u.email,u.phone,u.platform_admin,m.role,s.org_id,s.csrf,s.expires_at
-FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=s.user_id AND m.org_id=s.org_id
-WHERE s.id=$1 AND s.expires_at>now() AND u.active AND m.active`, sid)
-	if err != nil || (c.Org != nil && c.Org.ID != s.OrgID) {
+	// One address for everyone (like Zoho): the workspace comes from the session. Platform admins may
+	// hold a console session (no workspace) or open any workspace for support without being a member.
+	s, err := db.One[row](c, a.DB.Pool, `SELECT u.id,u.name,u.email,u.phone,u.platform_admin,
+  COALESCE(m.role, CASE WHEN u.platform_admin THEN 'super' ELSE '' END) role, m.user_id IS NOT NULL member,
+  s.org_id,s.csrf,s.expires_at
+FROM sessions s JOIN users u ON u.id=s.user_id
+LEFT JOIN memberships m ON m.user_id=s.user_id AND m.org_id=s.org_id AND m.active
+WHERE s.id=$1 AND s.expires_at>now() AND u.active AND (m.user_id IS NOT NULL OR u.platform_admin)`, sid)
+	if err != nil || (s.OrgID == nil && !s.PlatformAdmin) || (c.Org != nil && (s.OrgID == nil || c.Org.ID != *s.OrgID)) {
 		return Err(http.StatusUnauthorized, "Please log in.")
 	}
-	if c.Org == nil {
-		org, err := a.orgByID(c, s.OrgID)
+	if c.Org == nil && s.OrgID != nil {
+		org, err := a.orgByID(c, *s.OrgID)
 		if err != nil {
 			return Err(http.StatusForbidden, "This workspace is suspended. Contact support.")
 		}
@@ -171,12 +181,14 @@ WHERE s.id=$1 AND s.expires_at>now() AND u.active AND m.active`, sid)
 	u := s.User
 	c.User = &u
 	c.CSRF = s.CSRF
+	c.Support = c.Org != nil && !s.Member
 	return nil
 }
 
 const SessionTTL = 7 * 24 * time.Hour
 
 // StartSession creates a session for a user in a workspace and sets the cookie.
+// StartSession signs a user in to a workspace (orgID 0 = platform console).
 func (a *App) StartSession(c *Ctx, userID, orgID int64) error {
 	tok := secure.Token(32)
 	csrf := secure.Token(16)
@@ -185,7 +197,7 @@ func (a *App) StartSession(c *Ctx, userID, orgID int64) error {
 		ua = ua[:250]
 	}
 	if _, err := a.DB.Pool.Exec(c, `INSERT INTO sessions (id,user_id,org_id,csrf,ip,ua,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-		secure.SHA256(tok), userID, orgID, csrf, c.IP(), ua, time.Now().Add(SessionTTL)); err != nil {
+		secure.SHA256(tok), userID, nullID(orgID), csrf, c.IP(), ua, time.Now().Add(SessionTTL)); err != nil {
 		return err
 	}
 	http.SetCookie(c.W, &http.Cookie{Name: SessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: a.Cfg.Scheme == "https",
@@ -245,14 +257,14 @@ func (a *App) orgByDomain(ctx context.Context, host string) (*Org, error) {
 		return nil, db.ErrNoRows
 	}
 	return a.cachedOrg("d:"+host, func() (*Org, error) {
-		o, err := db.One[Org](ctx, a.DB.Pool, `SELECT id,slug,name,plan,status FROM orgs WHERE custom_domain=$1 AND status='active'`, host)
+		o, err := db.One[Org](ctx, a.DB.Pool, orgCols+`WHERE o.custom_domain=$1 AND o.status='active'`, host)
 		return &o, err
 	})
 }
 
 func (a *App) orgByID(ctx context.Context, id int64) (*Org, error) {
 	return a.cachedOrg("i:"+itoa(id), func() (*Org, error) {
-		o, err := db.One[Org](ctx, a.DB.Pool, `SELECT id,slug,name,plan,status FROM orgs WHERE id=$1 AND status='active'`, id)
+		o, err := db.One[Org](ctx, a.DB.Pool, orgCols+`WHERE o.id=$1 AND o.status='active'`, id)
 		return &o, err
 	})
 }
@@ -274,4 +286,24 @@ func itoa(n int64) string {
 		n /= 10
 	}
 	return string(b[i:])
+}
+
+func nullID(id int64) any {
+	if id <= 0 {
+		return nil
+	}
+	return id
+}
+
+const orgCols = `SELECT o.id,o.slug,o.name,COALESCE(p.name,'') plan,o.plan_id,o.status,
+  COALESCE(o.modules, p.modules, '["crm"]'::jsonb) modules,
+  COALESCE(p.limits,'{}'::jsonb) || COALESCE(o.limits,'{}'::jsonb) limits
+FROM orgs o LEFT JOIN plans p ON p.id=o.plan_id `
+
+// OrgByID returns the active organisation (cached for 30 s).
+func (a *App) OrgByID(ctx context.Context, id int64) (*Org, error) { return a.orgByID(ctx, id) }
+
+// ForgetAllOrgs drops every cached organisation (after a plan change).
+func (a *App) ForgetAllOrgs() {
+	a.orgs.Range(func(k, _ any) bool { a.orgs.Delete(k); return true })
 }

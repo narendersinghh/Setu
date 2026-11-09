@@ -22,6 +22,11 @@ type Config struct {
 	OrgJobCap    int    // max running jobs per organisation (fairness)
 	Dev          bool
 	SignupOpen   bool
+	AdminEmail   string // bootstrap platform admin (SETU_ADMIN_EMAIL / SETU_ADMIN_PASSWORD)
+	AdminPass    string
+	UpdateRepo   string // GitHub owner/name for in-app updates
+	UpdateChan   string // stable | edge
+	UpdateToken  string // GitHub token for private repositories
 }
 
 func env(k, d string) string {
@@ -50,6 +55,11 @@ func Load() (*Config, error) {
 		OrgJobCap:    envInt("SETU_ORG_JOB_CAP", 3),
 		Dev:          env("SETU_DEV", "") == "1",
 		SignupOpen:   env("SETU_SIGNUP", "1") == "1",
+		AdminEmail:   strings.ToLower(env("SETU_ADMIN_EMAIL", "")),
+		AdminPass:    env("SETU_ADMIN_PASSWORD", ""),
+		UpdateRepo:   env("SETU_UPDATE_REPO", "narendersinghh/setu"),
+		UpdateChan:   env("SETU_UPDATE_CHANNEL", "stable"),
+		UpdateToken:  env("SETU_UPDATE_TOKEN", ""),
 	}
 	c.MigrateURL = env("MIGRATE_DATABASE_URL", c.DatabaseURL)
 	if c.DatabaseURL == "" {

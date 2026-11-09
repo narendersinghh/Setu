@@ -121,7 +121,7 @@ func TestFlowDB(t *testing.T) {
 	}
 	type cnt struct {
 		Leads, Events, Enrich, Search, Usage int
-		Rating                              float64
+		Rating                               float64
 	}
 	var k cnt
 	a.OrgTx(ctx, org, func(tx pgx.Tx, _ *settings.Store) error {

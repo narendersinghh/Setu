@@ -44,6 +44,9 @@ type payload struct {
 	Bulk     bool            `json:"bulk,omitempty"`
 	Brief    json.RawMessage `json:"brief,omitempty"`
 	RID      int64           `json:"rid,omitempty"`
+	// set by the ai bulk engine on the "save" callback
+	AIBatch int64  `json:"ai_batch,omitempty"`
+	AIError string `json:"ai_error,omitempty"`
 }
 
 func (p *payload) contact() bool { return p.Contact || p.Auto }
@@ -61,6 +64,9 @@ func pushReport(ctx context.Context, q db.Q, orgID, leadID int64, p payload) err
 
 // Enqueue starts writing a report for a lead (job "report"). A pending report job of the lead is replaced.
 func Enqueue(ctx context.Context, tx pgx.Tx, orgID, leadID int64, o EnqueueOpts) error {
+	if err := app.Limit(ctx, tx, orgID, "reports_month", 1); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM jobs WHERE org_id=$1 AND type=$2 AND ref_id=$3 AND status='pending'`, orgID, JobReport, leadID); err != nil {
 		return err
 	}
@@ -75,6 +81,8 @@ func phaseTitle(p string, attempt int16) string {
 	switch p {
 	case "write":
 		return "Report · step 2 of 3: AI writes the report" + a
+	case "save":
+		return "Report · step 2 of 3: saving the AI answer" + a
 	case "pdf":
 		return "Report · step 3 of 3: PDF design" + a
 	}
@@ -196,20 +204,27 @@ func (r *runner) run(p *payload) error {
 			n.Brief, _ = json.Marshal(brief)
 		}
 		return r.tx(func(tx pgx.Tx) error { return pushReport(r.ctx, tx, r.org, r.lead, n) })
-	case "write":
-		// TODO(ai-engine): when ai.SubmitBulk / ai.BulkResult exist, send bulk runs (p.Bulk with
-		// ai.BulkMode(s) != "") to the parallel / batch engine and save the answer with finish().
-		// Until then every report of a bulk run is written here, one by one.
+	case "write", "save":
 		var brief J
 		if len(p.Brief) > 0 {
 			json.Unmarshal(p.Brief, &brief)
 		}
-		rid, err := r.write(p, brief)
+		var rid int64
+		var err error
+		if p.Phase == "save" {
+			rid, err = r.save(p, brief)
+		} else if mode := ai.BulkMode(r.s); p.Bulk && mode != "" {
+			// Bulk run: the AI engine writes several reports at once (parallel) or as one Claude batch;
+			// the answer comes back as phase "save".
+			return r.submitBulk(p, brief, mode)
+		} else {
+			rid, err = r.write(p, brief)
+		}
 		if err != nil {
 			return err
 		}
 		n := p.next("pdf")
-		n.Brief, n.RID = nil, rid
+		n.Brief, n.RID, n.AIBatch, n.AIError = nil, rid, 0, ""
 		if reportMode(r.s) != "link" {
 			if err := r.prog(88, "Queued: designing the PDF"); err != nil {
 				return err
@@ -485,23 +500,83 @@ func writeRequest(in *aiInput, brief J, research bool) string {
 	return u
 }
 
-func (r *runner) write(p *payload, brief J) (int64, error) {
+// writeReq: the report-writing AI request of a lead.
+func (r *runner) writeReq(p *payload, brief J) (*aiInput, ai.Request, error) {
 	in, err := r.input(p)
 	if err != nil {
-		return 0, err
+		return nil, ai.Request{}, err
 	}
 	research := researchOn(r.s)
 	user := writeRequest(in, brief, research)
-	if err := r.prog(70, "AI is writing the report (usually 1–3 min)"); err != nil {
-		return 0, err
-	}
 	live := research && len(brief) == 0
 	label := "Writing the report"
 	if live {
 		label += " (with web search)"
 	}
-	req := ai.Request{System: systemPrompt, Messages: []ai.Msg{{Role: "user", Content: user}}, MaxTokens: 16000, WebSearch: live, Searches: 3,
-		Purpose: "report", Label: label, Deadline: 300 * time.Second, Trace: r.tr}
+	return in, ai.Request{System: systemPrompt, Messages: []ai.Msg{{Role: "user", Content: user}}, MaxTokens: 16000, WebSearch: live, Searches: 3,
+		Purpose: "report", Label: label, Deadline: 300 * time.Second, Trace: r.tr}, nil
+}
+
+// submitBulk hands the request to the ai bulk engine (v1 Batch::add / Parallel::add).
+func (r *runner) submitBulk(p *payload, brief J, mode string) error {
+	_, req, err := r.writeReq(p, brief)
+	if err != nil {
+		return err
+	}
+	msg := fmt.Sprintf("Waiting for a free AI slot (%d reports are written at the same time)", ai.Slots(r.s))
+	if mode == "batch" {
+		msg = "Waiting to go to the AI together with the other reports (batch)"
+	}
+	if err := r.prog(70, msg); err != nil {
+		return err
+	}
+	n := p.next("save")
+	req.Trace = nil
+	return r.tx(func(tx pgx.Tx) error { return ai.SubmitBulk(r.ctx, r.a, tx, r.org, r.lead, req, JobReport, n) })
+}
+
+// save stores the answer of the bulk engine. When the bulk request failed, the report is written directly.
+func (r *runner) save(p *payload, brief J) (int64, error) {
+	var res *ai.Response
+	err := errors.New(p.AIError)
+	if p.AIError == "" && p.AIBatch > 0 {
+		err = r.tx(func(tx pgx.Tx) error {
+			var e error
+			res, e = ai.BulkResult(r.ctx, tx, p.AIBatch)
+			return e
+		})
+	}
+	if errors.Is(err, shared.ErrAborted) {
+		return 0, err
+	}
+	if err == nil {
+		in, e := r.input(p)
+		if e != nil {
+			return 0, e
+		}
+		rid, e := r.finish(res.Text, brief, in.prompt.ID)
+		if e != nil {
+			return 0, e
+		}
+		r.tx(func(tx pgx.Tx) error { return ai.BulkDone(r.ctx, tx, p.AIBatch) })
+		if rid != 0 {
+			return rid, nil
+		}
+		err = errors.New("the answer was not valid JSON")
+	}
+	r.tr.Step(r.ctx, "Bulk AI answer not usable ("+trunc(err.Error(), 120)+") – writing this report directly", "step")
+	return r.write(p, brief)
+}
+
+func (r *runner) write(p *payload, brief J) (int64, error) {
+	in, req, err := r.writeReq(p, brief)
+	if err != nil {
+		return 0, err
+	}
+	user := req.Messages[0].Content
+	if err := r.prog(70, "AI is writing the report (usually 1–3 min)"); err != nil {
+		return 0, err
+	}
 	res, err := ai.Complete(r.ctx, r.a, r.org, r.s, req)
 	if err != nil {
 		return 0, err

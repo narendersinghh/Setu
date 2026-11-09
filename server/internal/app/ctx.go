@@ -18,11 +18,27 @@ import (
 )
 
 type Org struct {
-	ID     int64  `db:"id" json:"id"`
-	Slug   string `db:"slug" json:"slug"`
-	Name   string `db:"name" json:"name"`
-	Plan   string `db:"plan" json:"plan"`
-	Status string `db:"status" json:"status"`
+	ID      int64          `db:"id" json:"id"`
+	Slug    string         `db:"slug" json:"slug"`
+	Name    string         `db:"name" json:"name"`
+	Plan    string         `db:"plan" json:"plan"` // plan name
+	PlanID  *int64         `db:"plan_id" json:"plan_id"`
+	Status  string         `db:"status" json:"status"`
+	Modules []string       `db:"modules" json:"modules"` // effective: org override, else plan
+	Limits  map[string]int `db:"limits" json:"limits"`   // effective: plan limits merged with org overrides
+}
+
+// HasModule reports whether the organisation's plan (or override) includes a module.
+func (o *Org) HasModule(m string) bool {
+	if m == "crm" || m == "" {
+		return true
+	}
+	for _, x := range o.Modules {
+		if x == m {
+			return true
+		}
+	}
+	return false
 }
 
 type User struct {
@@ -48,6 +64,8 @@ type Ctx struct {
 	Org  *Org
 	User *User
 	CSRF string
+	// Support is true when a platform admin opened this workspace (not a member, hidden from the team).
+	Support bool
 
 	tx      pgx.Tx
 	set     *settings.Store
@@ -166,8 +184,8 @@ func (c *Ctx) IP() string {
 // ---- roles & access (same model as v1: super, admin, sales)
 
 var Roles = map[string][3]string{
-	"super": {"Super admin", "purple", "Full control: modules, all settings, every user and every lead."},
-	"admin": {"Admin / Manager", "blue", "Runs the team: all leads, prospecting, automations, templates and settings. Cannot switch modules or manage super admins."},
+	"super": {"Owner", "purple", "Full control of your organisation: all settings, every user and every lead."},
+	"admin": {"Admin / Manager", "blue", "Runs the team: all leads, prospecting, automations, templates and settings. Cannot manage owners."},
 	"sales": {"Sales person", "green", "Works their own leads and unassigned leads, books appointments, logs calls and notes."},
 }
 
@@ -184,7 +202,7 @@ func (c *Ctx) IsSuper() bool { return c.Role() == "super" }
 func (c *Ctx) Can(p string) bool {
 	switch c.Role() {
 	case "super":
-		return true
+		return p != "modules" // modules belong to the plan, set by the platform admin
 	case "admin":
 		return p != "modules" && p != "super_users"
 	case "sales":
@@ -194,7 +212,7 @@ func (c *Ctx) Can(p string) bool {
 }
 
 // Mod reports whether a module is switched on (CRM is always on).
-func (c *Ctx) Mod(m string) bool { return m == "crm" || m == "" || c.S().Get("mod_"+m, "1") == "1" }
+func (c *Ctx) Mod(m string) bool { return c.Org != nil && c.Org.HasModule(m) }
 
 // Scope is the SQL filter so sales people only see their own and unassigned leads.
 func (c *Ctx) Scope(alias string) string {
@@ -239,6 +257,6 @@ type HTTPError struct {
 func (e *HTTPError) Error() string { return e.Msg }
 
 func Err(code int, msg string) *HTTPError { return &HTTPError{Code: code, Msg: msg} }
-func Bad(msg string) *HTTPError            { return Err(http.StatusBadRequest, msg) }
-func NotFound() *HTTPError                 { return Err(http.StatusNotFound, "Not found") }
-func Forbidden() *HTTPError                { return Err(http.StatusForbidden, "You do not have access to that.") }
+func Bad(msg string) *HTTPError           { return Err(http.StatusBadRequest, msg) }
+func NotFound() *HTTPError                { return Err(http.StatusNotFound, "Not found") }
+func Forbidden() *HTTPError               { return Err(http.StatusForbidden, "You do not have access to that.") }

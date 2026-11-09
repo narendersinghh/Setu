@@ -23,6 +23,7 @@ import (
 )
 
 func Register(a *app.App) {
+	ai.PriceFunc = AIPrice // AI cost uses this workspace price table
 	a.Get("/usage", func(c *app.Ctx) (any, error) { return page(c) }, app.Perm("settings"))
 	a.Put("/usage/prices", savePrices, app.Perm("settings"))
 	a.Post("/usage/ai-prices", startAIPrices, app.Perm("settings"))

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useMe, useCan, useMod } from '@/lib/session'
 import { initial } from '@/lib/format'
-import { Icon } from './ui'
+import { Icon, lastTitle } from './ui'
 
 const ActivityDrawer = lazy(() => import('@/modules/reports/ActivityDrawer'))
 
@@ -44,9 +44,12 @@ export default function Layout() {
   const [drawer, setDrawer] = useState(false)
   const [create, setCreate] = useState(false)
   const [q, setQ] = useState('')
+  const tick = useQuery({ queryKey: ['tick'], queryFn: () => api.get<{ due: number; running: number }>('/activity/tick').catch(() => ({ due: 0, running: 0 })), enabled: can('settings'), refetchInterval: 15_000 })
+  const busy = (tick.data?.due || 0) + (tick.data?.running || 0)
   useEffect(() => {
     const f = (e: Event) => setHead((e as CustomEvent).detail)
     addEventListener('setu:title', f)
+    setHead(lastTitle)
     return () => removeEventListener('setu:title', f)
   }, [])
   useEffect(() => { document.body.classList.remove('nav'); setCreate(false) }, [loc.pathname])
@@ -81,7 +84,7 @@ export default function Layout() {
         <div className="tb-t"><h1>{head.title}</h1>{head.subtitle && <span className="sub">{head.subtitle}</span>}</div>
         <div className="tb-r">
           <form className="gs" onSubmit={search}><Icon n="search" /><input placeholder="Search leads, phone, email…" value={q} onChange={e => setQ(e.target.value)} /></form>
-          {can('settings') && <><Link className="ib bd act-b" to="/usage" title="API usage & costs"><Icon n="db" /></Link><button className="ib bd act-b" onClick={() => setDrawer(true)} title="Activity & processes"><Icon n="activity" /></button></>}
+          {can('settings') && <><Link className="ib bd act-b" to="/usage" title="API usage & costs"><Icon n="db" /></Link><button className="ib bd act-b" onClick={() => setDrawer(true)} title="Activity & processes"><Icon n="activity" />{busy > 0 && <span className="badge">{busy}</span>}</button></>}
           <div className={'dd' + (create ? ' open' : '')}><button className="btn btn-p" onClick={() => setCreate(!create)}><Icon n="plus" /><span>Create</span></button>
             <div className="ddm"><Link to="/leads/new"><Icon n="user" />New lead</Link><Link to="/appointments?add=1"><Icon n="cal" />Appointment</Link>{mod('prospecting') && can('prospecting') && <Link to="/scraper?new=1"><Icon n="map" />Map search</Link>}{can('automations') && <Link to="/automations/new"><Icon n="bot" />Automation</Link>}</div>
           </div>

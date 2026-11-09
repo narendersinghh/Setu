@@ -264,7 +264,7 @@ func netMsg(ctx context.Context, err error) string {
 		return "timeout"
 	}
 	if errors.Is(err, netx.ErrBlocked) {
-		return "the address is not a public web address"
+		return blockedMsg
 	}
 	var ue *url.Error
 	if errors.As(err, &ue) {
@@ -314,6 +314,16 @@ func sse(res *http.Response, fn func(data []byte) error) error {
 		return err
 	}
 	return sc.Err()
+}
+
+const blockedMsg = "the address is not a public web address"
+
+// reachErr: the AI address itself is not allowed (SSRF guard).
+func reachErr(ae *apiError) (*apiError, bool) {
+	if ae.Code == 0 && ae.Msg == blockedMsg {
+		return &apiError{Code: 0, Msg: "The AI address is not a public web address. Check the address in AI Connection."}, true
+	}
+	return nil, false
 }
 
 // streamErr turns a broken stream into an apiError.
@@ -441,6 +451,9 @@ func claudeErr(err error) error {
 	var ae *apiError
 	if !errors.As(err, &ae) {
 		return err
+	}
+	if r, ok := reachErr(ae); ok {
+		return r
 	}
 	out := *ae
 	if ae.Code == 0 {
@@ -758,6 +771,9 @@ func openAIErr(err error) error {
 	if !errors.As(err, &ae) {
 		return err
 	}
+	if r, ok := reachErr(ae); ok {
+		return r
+	}
 	out := *ae
 	if ae.Code == 0 {
 		out.Msg = "The AI did not answer in time (" + ae.Msg + "). Try again or choose a faster model in AI Connection."
@@ -906,6 +922,9 @@ func geminiErr(err error) error {
 	var ae *apiError
 	if !errors.As(err, &ae) {
 		return err
+	}
+	if r, ok := reachErr(ae); ok {
+		return r
 	}
 	out := *ae
 	if ae.Code == 0 {

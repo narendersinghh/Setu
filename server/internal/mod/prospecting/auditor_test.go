@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 

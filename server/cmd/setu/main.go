@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/narendersinghh/setu/server/internal/app"
+	"github.com/narendersinghh/setu/server/internal/buildinfo"
 	"github.com/narendersinghh/setu/server/internal/config"
 	"github.com/narendersinghh/setu/server/internal/core"
 	"github.com/narendersinghh/setu/server/internal/db"
@@ -60,6 +61,9 @@ func run(cmd string) error {
 	a := app.New(cfg, d)
 	core.Register(a)
 	mod.Register(a)
+	if err := core.EnsureAdmin(ctx, a); err != nil {
+		return fmt.Errorf("platform admin: %w", err)
+	}
 	a.Mux.Handle("/*", webui.Handler())
 
 	switch cmd {
@@ -81,7 +85,10 @@ func run(cmd string) error {
 			fmt.Printf("Imported as organisation %d. Users sign in at %s with their v1 email and password.\n", id, cfg.AppURL())
 		}
 		return err
-	case "platform-admin": // setu platform-admin <email> – grant access to the Organisations console
+	case "version":
+		fmt.Println(buildinfo.Version, buildinfo.Commit)
+		return nil
+	case "platform-admin": // setu platform-admin <email> – grant access to the Platform console
 		if len(os.Args) < 3 {
 			return fmt.Errorf("usage: setu platform-admin <email>")
 		}
@@ -104,7 +111,7 @@ func run(cmd string) error {
 			defer cancel()
 			srv.Shutdown(c)
 		}()
-		slog.Info("listening", "addr", cfg.Addr, "url", cfg.AppURL())
+		slog.Info("listening", "addr", cfg.Addr, "url", cfg.AppURL(), "version", buildinfo.Version, "commit", buildinfo.Commit)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}

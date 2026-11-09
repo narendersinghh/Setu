@@ -217,6 +217,9 @@ func Create(ctx context.Context, a *app.App, tx pgx.Tx, orgID int64, in CreateIn
 	if in.UserID > 0 {
 		cols["assigned_to"] = in.UserID
 	}
+	if err := app.Limit(ctx, tx, orgID, "leads", 1); err != nil {
+		return 0, err
+	}
 	id, err := db.Insert(ctx, tx, "leads", cols)
 	if err != nil {
 		return 0, err

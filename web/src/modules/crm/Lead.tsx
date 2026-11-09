@@ -8,6 +8,7 @@ import { useCan, useMe, useMod } from '@/lib/session'
 import { ago, date, money, safeUrl, toLocalInput } from '@/lib/format'
 import { Alert, Btn, Hi, Icon, Modal, Spinner, act, confirmDo, toast, usePageTitle, useInterval } from '@/components/ui'
 import LeadAutomations from '@/modules/automation/LeadAutomations'
+import LeadReports from '@/modules/reports/LeadReports'
 import { CField, ChBadge, CopyText, CustomInput, EVIC, SOURCES, STATUSES, SrcBadge, StageBadge, StatusBadge, avColor, localToISO, statusOf, stageLabel, telHref, useMeta, waLink } from './common'
 
 interface LeadFull {
@@ -32,7 +33,7 @@ const asRows = (d: any): any[] => (Array.isArray(d) ? d : d?.rows || d?.items ||
 const dt = (ts: string) => new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 const dDay = (ts: string) => new Date(ts).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 
-type TabK = 'overview' | 'details' | 'journey' | 'messages' | 'meetings' | 'calls' | 'automations'
+type TabK = 'overview' | 'details' | 'journey' | 'messages' | 'meetings' | 'calls' | 'automations' | 'reports'
 
 export default function Lead() {
   const id = Number(useParams().id)
@@ -66,6 +67,7 @@ export default function Lead() {
     { k: 'journey', label: 'Journey', ic: 'activity', c: 'violet', n: d.counts.journey }, { k: 'messages', label: 'Conversations', ic: 'msg', c: 'green', n: d.counts.messages },
     { k: 'meetings', label: 'Meetings', ic: 'cal', c: 'teal', n: d.counts.appointments }, { k: 'calls', label: 'AI calls', ic: 'mic', c: 'pink', n: d.counts.calls },
     { k: 'automations', label: 'Automations', ic: 'bot', c: 'pink', n: d.counts.automations },
+    ...(pro ? [{ k: 'reports' as TabK, label: 'Audit reports', ic: 'file', c: 'orange' }] : []),
   ]
   const tab = (tabs.find(t => t.k === sp.get('tab'))?.k || 'overview') as TabK
   const setTab = (t: TabK) => setSp(t === 'overview' ? {} : { tab: t })
@@ -122,6 +124,7 @@ export default function Lead() {
         {tab === 'meetings' && <Meetings d={d} openBook={() => setModal('book')} />}
         {tab === 'calls' && <Calls d={d} openCall={() => setModal('call')} />}
         {tab === 'automations' && <LeadAutomations leadId={id} />}
+        {tab === 'reports' && pro && <LeadReports leadId={id} />}
       </div></div>
     <BookModal open={modal === 'book'} d={d} onClose={() => setModal('')} onDone={refresh} />
     <CallModal open={modal === 'call'} d={d} onClose={() => setModal('')} onDone={refresh} />

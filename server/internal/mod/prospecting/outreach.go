@@ -17,7 +17,6 @@ import (
 	"github.com/narendersinghh/setu/server/internal/mod/messaging"
 	"github.com/narendersinghh/setu/server/internal/mod/reports"
 	"github.com/narendersinghh/setu/server/internal/mod/shared"
-	"github.com/narendersinghh/setu/server/internal/netx"
 	"github.com/narendersinghh/setu/server/internal/settings"
 )
 
@@ -26,6 +25,7 @@ var (
 	enqueueReport = func(ctx context.Context, tx pgx.Tx, org, lead, prompt int64, contact, bulk bool) error {
 		return reports.Enqueue(ctx, tx, org, lead, reports.EnqueueOpts{PromptID: prompt, Contact: contact, Bulk: bulk})
 	}
+	reportPDF    = reports.PDF
 	sendEmail    = messaging.SendEmail
 	sendWhatsApp = messaging.SendWhatsApp
 )
@@ -289,51 +289,42 @@ func (m *mod) jobContact(ctx context.Context, j *jobs.Job, r *run) error {
 }
 
 // message: subject and text of the active message template of a type (email, email_noweb, whatsapp, whatsapp_noweb).
-func message(ctx context.Context, q db.Q, typ string) (string, string) {
-	type pr struct {
-		Subject string `db:"subject"`
-		Content string `db:"content"`
-	}
-	p, err := db.One[pr](ctx, q, `SELECT subject, content FROM prompts WHERE type=$1 ORDER BY is_active DESC, id LIMIT 1`, typ)
+var message = func(ctx context.Context, q db.Q, typ string) (string, string) {
+	sub, body, err := reports.ActivePrompt(ctx, q, typ)
 	if err != nil {
 		return "", ""
 	}
-	return p.Subject, p.Content
+	return sub, body
 }
 
 // files: the report PDF (unless delivery is "link only") and the website proposal PDF for businesses without a website.
 func (m *mod) files(ctx context.Context, s *settings.Store, org int64, l *shared.Lead) ([]messaging.Attachment, error) {
-	type rep struct {
-		Token string `db:"token"`
-		PDF   string `db:"pdf"`
-	}
-	var r rep
-	err := m.a.DB.Org(ctx, org, func(tx pgx.Tx) error {
+	var tok string
+	if err := m.a.DB.Org(ctx, org, func(tx pgx.Tx) error {
 		var err error
-		r, err = db.One[rep](ctx, tx, `SELECT token, pdf FROM reports WHERE lead_id=$1 ORDER BY id DESC LIMIT 1`, l.ID)
+		tok, err = db.Val[string](ctx, tx, `SELECT token FROM reports WHERE lead_id=$1 ORDER BY id DESC LIMIT 1`, l.ID)
 		return err
-	})
-	if errors.Is(err, db.ErrNoRows) {
-		return nil, errors.New("No report generated yet")
-	}
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
+	if tok == "" {
+		return nil, errors.New("No report generated yet")
+	}
 	base := m.a.Cfg.AppURL()
-	slug := slugRe.ReplaceAllString(cut(l.Name, 40), "-")
 	var out []messaging.Attachment
 	if reportMode(s) != "link" {
-		u := base + "/r/" + r.Token + ".pdf"
-		data := m.readFile(r.PDF)
-		if data == nil {
-			if res, err := apiDo(ctx, netx.Req{URL: u, Timeout: 3 * time.Minute, Max: 60 << 20}); err == nil && res.OK() && strings.HasPrefix(string(res.Body), "%PDF") {
-				data = res.Body
-			}
+		file, name, err := reportPDF(ctx, m.a, org, l.ID)
+		var data []byte
+		if err == nil {
+			data, _ = os.ReadFile(file)
 		}
-		if data == nil {
+		if len(data) == 0 {
 			return nil, errors.New("Report PDF could not be created - regenerate the report")
 		}
-		out = append(out, messaging.Attachment{Name: "Audit-Report-" + slug + ".pdf", Mime: "application/pdf", Data: data, URL: u})
+		if name == "" {
+			name = "Audit-Report-" + slugRe.ReplaceAllString(cut(l.Name, 40), "-") + ".pdf"
+		}
+		out = append(out, messaging.Attachment{Name: name, Mime: "application/pdf", Data: data, URL: base + "/r/" + tok + ".pdf"})
 	}
 	if pp := s.Get("proposal_pdf", ""); l.Website == "" && pp != "" {
 		if data := m.readFile(pp); data != nil {

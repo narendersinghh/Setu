@@ -1,0 +1,155 @@
+/* Setu v2 design tokens.
+ * Every colour, font, radius and shadow used by the app comes from these variables.
+ * Brand variables (--pri, --acc, --ok, --warn, --err, --info, --r, --ff, --fh) are overridden at runtime
+ * by ThemeProvider (src/lib/theme.tsx) from GET /api/public/brand; everything else is derived from them. */
+
+:root {
+  /* ---- brand (defaults = checkout reference, see docs/V2_PLATFORM.md) */
+  --pri: #C21F3A;
+  --acc: #FFD60A;
+  --ok: #6BA539;
+  --warn: #F59E0B;
+  --err: #E5484D;
+  --info: #3B82F6;
+  --pri-ink: #FFFFFF;   /* text on --pri */
+  --acc-ink: #111111;   /* text on --acc */
+  --radius: 16;
+  --r: 16px;
+  --rs: calc(var(--r) * .66);
+  --rl: calc(var(--r) * 1.4);
+  --ff: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fh: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --fm: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- derived brand shades */
+  --pri-h: color-mix(in srgb, var(--pri) 84%, #000);
+  --pri-d: color-mix(in srgb, var(--pri) 62%, #000);
+  --acc-h: color-mix(in srgb, var(--acc) 88%, #000);
+  --grad-pri: radial-gradient(120% 90% at 100% 0, color-mix(in srgb, var(--pri) 70%, #FF6B6B) 0, transparent 55%), linear-gradient(140deg, var(--pri) 0%, var(--pri-d) 100%);
+  --tex-w: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23FFFFFF' stroke-opacity='.09' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --stripe: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ok) 22%, transparent) 0 6px, transparent 6px 12px);
+}
+
+/* ------------------------------------------------------------------ light theme */
+:root, [data-theme=light] {
+  color-scheme: light;
+  --bg: #F3F3F1;
+  --surface: #FFFFFF;
+  --surface-2: #F9F9F7;      /* subtle fill: table head, card footer */
+  --surface-3: #EFEFEC;      /* muted fill: tracks, segmented control */
+  --hover: #F5F5F2;
+  --line: #E6E6E1;
+  --line2: #F0F0EC;
+  --input-bd: #DADAD4;
+  --ink: #111111;
+  --txt: #2C2E33;
+  --mut: #686B73;
+  --mut2: #8E9199;
+  --pri-t: var(--pri);                                         /* primary used as text */
+  --pri-s: color-mix(in srgb, var(--pri) 9%, #fff);            /* primary soft background */
+  --acc-s: color-mix(in srgb, var(--acc) 22%, #fff);
+  --ring: color-mix(in srgb, var(--pri) 55%, transparent);
+  --code-bg: #F2F1EE;
+  --code-c: var(--pri-d);
+  --pre-bg: #17181C;
+  --pre-c: #F4E9C8;
+  --sb-bg: #141518;
+  --sb-bg2: #1C1D22;
+  --sb-txt: #B7B9C0;
+  --sb-mut: #75787F;
+  --sb-line: rgba(255, 255, 255, .07);
+  --sb-hover: rgba(255, 255, 255, .06);
+  --overlay: rgba(17, 17, 17, .45);
+  --sh: 0 1px 2px rgba(17, 17, 17, .04), 0 6px 20px rgba(17, 17, 17, .045);
+  --sh1: 0 1px 2px rgba(17, 17, 17, .06);
+  --sh2: 0 24px 60px rgba(17, 17, 17, .18);
+  --sh-hover: 0 12px 30px rgba(17, 17, 17, .09);
+  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23111111' stroke-opacity='.06' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --skel: linear-gradient(90deg, #EEEEEB 0, #F7F7F5 40%, #EEEEEB 80%);
+
+  /* status colour families: text/icon colour + soft background */
+  --f-violet: #6A3BD6; --f-violet-s: #F1ECFE;
+  --f-blue: #1F5FD6;   --f-blue-s: #E7EFFD;
+  --f-sky: #0A6FA6;    --f-sky-s: #E1F2FA;
+  --f-teal: #0A7A6F;   --f-teal-s: #DDF3EF;
+  --f-green: #3A7419;  --f-green-s: #E8F3DC;
+  --f-amber: #955405;  --f-amber-s: #FDF0D2;
+  --f-orange: #B9470C; --f-orange-s: #FFE9DA;
+  --f-rose: #C02032;   --f-rose-s: #FDE6E8;
+  --f-pink: #B3206A;   --f-pink-s: #FCE5F0;
+  --f-gray: #575A63;   --f-gray-s: #EEEEEA;
+}
+
+/* ------------------------------------------------------------------ dark theme */
+[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #0E0F12;
+  --surface: #17191E;
+  --surface-2: #1B1D23;
+  --surface-3: #24272E;
+  --hover: #1F2228;
+  --line: #2A2D35;
+  --line2: #23262D;
+  --input-bd: #343842;
+  --ink: #F4F5F7;
+  --txt: #D5D7DD;
+  --mut: #A1A5AF;
+  --mut2: #7A7E89;
+  --pri-t: color-mix(in srgb, var(--pri) 52%, #fff);
+  --pri-s: color-mix(in srgb, var(--pri) 20%, #17191E);
+  --acc-s: color-mix(in srgb, var(--acc) 14%, #17191E);
+  --ring: color-mix(in srgb, var(--pri) 45%, #fff);
+  --code-bg: #24272E;
+  --code-c: #FFC9D2;
+  --pre-bg: #0A0B0D;
+  --pre-c: #F4E9C8;
+  --sb-bg: #0A0B0D;
+  --sb-bg2: #121317;
+  --sb-txt: #AEB1B9;
+  --sb-mut: #6C6F78;
+  --sb-line: rgba(255, 255, 255, .06);
+  --sb-hover: rgba(255, 255, 255, .05);
+  --overlay: rgba(0, 0, 0, .6);
+  --sh: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .18);
+  --sh1: 0 1px 2px rgba(0, 0, 0, .35);
+  --sh2: 0 24px 60px rgba(0, 0, 0, .55);
+  --sh-hover: 0 12px 30px rgba(0, 0, 0, .4);
+  --tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23FFFFFF' stroke-opacity='.045' stroke-linecap='round'%3E%3Cpath stroke-width='14' d='M-30 130C90 104 170 190 280 158S440 64 550 98'/%3E%3Cpath stroke-width='8' d='M150 -30C182 120 128 268 200 372S272 486 262 550'/%3E%3Cpath stroke-width='3' d='M-10 318h540M-10 438h540M64-10v540M384-10v540M-10 228l540 120'/%3E%3Cpath stroke-width='1.5' d='M18 18h86v72H18zM420 190h70v92h-70zM276 392h74v28h-74zM418 22h76v50h-76zM16 344h34v66H16zM96 456h42v40H96zM470 380h40v34h-40z'/%3E%3Ccircle cx='312' cy='262' r='42' stroke-width='2'/%3E%3Cpath stroke-width='1.2' stroke-dasharray='4 7' d='M0 32c120 50 260-10 520 40M0 500c140-60 300 10 520-30'/%3E%3C/svg%3E");
+  --skel: linear-gradient(90deg, #1F2228 0, #2A2D35 40%, #1F2228 80%);
+
+  --f-violet: #B9A2FF; --f-violet-s: rgba(160, 130, 255, .15);
+  --f-blue: #8DB4FF;   --f-blue-s: rgba(90, 145, 255, .15);
+  --f-sky: #7DCBF2;    --f-sky-s: rgba(70, 180, 235, .14);
+  --f-teal: #6FDCCB;   --f-teal-s: rgba(40, 200, 180, .13);
+  --f-green: #A6D97D;  --f-green-s: rgba(120, 190, 70, .15);
+  --f-amber: #F5C46A;  --f-amber-s: rgba(245, 180, 60, .14);
+  --f-orange: #FFAA75; --f-orange-s: rgba(255, 140, 70, .14);
+  --f-rose: #FF9AA6;   --f-rose-s: rgba(255, 90, 110, .15);
+  --f-pink: #F79BCB;   --f-pink-s: rgba(240, 100, 170, .15);
+  --f-gray: #B4B7C0;   --f-gray-s: rgba(180, 185, 195, .12);
+}
+
+/* ------------------------------------------------------------------ colour families (v1 class names) */
+:root { --c: var(--pri-t); --s: var(--pri-s); }
+.c-indigo, .hi-n, .ni-n, .st-indigo, .bdg-indigo { --c: var(--pri-t); --s: var(--pri-s); }
+.c-violet, .hi-p, .ni-p, .st-violet, .bdg-purple, .src-purple { --c: var(--f-violet); --s: var(--f-violet-s); }
+.c-blue, .hi-b, .ni-b, .st-blue, .bdg-blue, .src-blue { --c: var(--f-blue); --s: var(--f-blue-s); }
+.c-sky, .st-sky, .ni-k, .hi-k, .bdg-sky { --c: var(--f-sky); --s: var(--f-sky-s); }
+.c-teal, .hi-t, .ni-t, .st-teal, .bdg-teal, .src-teal { --c: var(--f-teal); --s: var(--f-teal-s); }
+.c-green, .hi-g, .ni-g, .st-green, .bdg-green, .src-green { --c: var(--f-green); --s: var(--f-green-s); }
+.c-amber, .hi-y, .ni-y, .st-amber, .bdg-gold { --c: var(--f-amber); --s: var(--f-amber-s); }
+.c-orange, .hi-o, .ni-o, .st-orange, .bdg-orange, .src-orange { --c: var(--f-orange); --s: var(--f-orange-s); }
+.c-rose, .hi-r, .ni-r, .st-rose, .bdg-red { --c: var(--f-rose); --s: var(--f-rose-s); }
+.c-pink, .st-pink, .ni-i, .hi-i, .bdg-pink { --c: var(--f-pink); --s: var(--f-pink-s); }
+.c-gray, .hi-s, .ni-s, .st-gray, .bdg-gray, .src-gray { --c: var(--f-gray); --s: var(--f-gray-s); }
+
+/* journey event colours */
+.ev-found, .ev-booked { --c: var(--f-blue); --s: var(--f-blue-s); }
+.ev-enriched, .ev-audited { --c: var(--f-sky); --s: var(--f-sky-s); }
+.ev-stage { --c: var(--f-violet); --s: var(--f-violet-s); }
+.ev-sent, .ev-delivered { --c: var(--f-teal); --s: var(--f-teal-s); }
+.ev-opened, .ev-viewed, .ev-read { --c: var(--f-amber); --s: var(--f-amber-s); }
+.ev-replied, .ev-wa_manual { --c: var(--f-green); --s: var(--f-green-s); }
+.ev-error { --c: var(--f-rose); --s: var(--f-rose-s); }
+.ev-note, .ev-scheduled { --c: var(--f-gray); --s: var(--f-gray-s); }
+.ev-call, .ev-auto { --c: var(--f-pink); --s: var(--f-pink-s); }
