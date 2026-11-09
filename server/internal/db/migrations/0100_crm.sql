@@ -6,14 +6,14 @@ CREATE INDEX IF NOT EXISTS leads_crm_board ON leads (org_id, status, (COALESCE(l
 -- Sorting by last activity and by deal value
 CREATE INDEX IF NOT EXISTS leads_crm_activity ON leads (org_id, (COALESCE(last_activity, created_at)) DESC, id DESC) WHERE is_lead;
 CREATE INDEX IF NOT EXISTS leads_crm_deal ON leads (org_id, deal_value DESC NULLS LAST, id DESC) WHERE is_lead;
--- Tag filter (LIKE '%tag%')
-CREATE INDEX IF NOT EXISTS leads_crm_tags ON leads USING gin (tags gin_trgm_ops) WHERE tags <> '';
--- Search across name, contact, email, phone, city, tags and custom fields (ILIKE '%q%')
-CREATE INDEX IF NOT EXISTS leads_crm_search ON leads USING gin (
-  (name || ' ' || contact_name || ' ' || email || ' ' || phone || ' ' || city || ' ' || tags || ' ' || (custom::text)) gin_trgm_ops);
--- Duplicate detection on create (same expressions as crm.Create)
-CREATE INDEX IF NOT EXISTS leads_crm_email ON leads (org_id, lower(email)) WHERE is_lead AND email <> '';
-CREATE INDEX IF NOT EXISTS leads_crm_phone ON leads (org_id, right(regexp_replace(phone, '\D', '', 'g'), 10)) WHERE is_lead AND phone <> '';
+-- Duplicate detection on create (crm.Create). Plain columns, because under Row-Level Security an index
+-- on an expression such as lower(email) cannot be used (lower() is not leakproof); "=" on a column can.
+-- (Search and tag filters use ILIKE, which is not leakproof either, so they filter the workspace's rows
+-- found through the org_id indexes; trigram indexes would not be used and are not added.)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_lc text GENERATED ALWAYS AS (lower(email)) STORED;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone_tail text GENERATED ALWAYS AS (right(regexp_replace(phone, '\D', '', 'g'), 10)) STORED;
+CREATE INDEX IF NOT EXISTS leads_crm_email ON leads (org_id, email_lc);
+CREATE INDEX IF NOT EXISTS leads_crm_phone ON leads (org_id, phone_tail);
 -- Recent activity (dashboard / activity page) in id order
 CREATE INDEX IF NOT EXISTS events_crm_recent ON events (org_id, id DESC);
 CREATE INDEX IF NOT EXISTS events_crm_type ON events (org_id, type, id DESC);
