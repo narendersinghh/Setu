@@ -342,7 +342,7 @@ func testEmail(c *app.Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := newOutMail(s, to, "Setu test email", "<p>Your email settings work.</p>", "Your email settings work.")
+	m := newOutMail(s, to, c.A.BrandName(c)+" test email", "<p>Your email settings work.</p>", "Your email settings work.")
 	m.MsgID = "<setu.test." + time.Now().Format("20060102150405") + "@" + helloName(mailFrom(s)) + ">"
 	if _, _, err := deliver(c, s, m); err != nil {
 		return nil, app.Bad(err.Error())
@@ -374,7 +374,7 @@ func testWhatsApp(c *app.Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, link, err := sendWA(c, c.A, c.Org.ID, s, 0, in.To, "Test message from Setu ✅", nil)
+	_, link, err := sendWA(c, c.A, c.Org.ID, s, 0, in.To, "Test message from "+c.A.BrandName(c)+" ✅", nil)
 	if err != nil {
 		return nil, app.Bad(err.Error())
 	}
@@ -399,7 +399,7 @@ func testVoice(c *app.Ctx) (any, error) {
 			return app.Bad("No AI voice provider connected (Settings → Voice calls)")
 		}
 		e := savepoint(c, tx, "testlead", func() (err error) {
-			lid, err = crm.Create(c, c.A, tx, c.Org.ID, crm.CreateIn{Fields: map[string]string{"contact_name": "Test call", "name": "Setu test", "phone": to}, Source: "manual", Detail: "Voice test", UserID: c.User.ID})
+			lid, err = crm.Create(c, c.A, tx, c.Org.ID, crm.CreateIn{Fields: map[string]string{"contact_name": "Test call", "name": c.A.BrandName(c) + " test", "phone": to}, Source: "manual", Detail: "Voice test", UserID: c.User.ID})
 			return err
 		})
 		if e != nil || lid == 0 { // CRM not available: add the test lead directly
@@ -418,7 +418,7 @@ func testVoice(c *app.Ctx) (any, error) {
 	if _, err := StartCall(c, c.A, c.Org.ID, s, Call{LeadID: lid}); err != nil {
 		return nil, app.Bad(err.Error())
 	}
-	return map[string]any{"ok": true, "lead_id": lid, "message": "Test call started – it appears in the \"Setu test\" lead journey."}, nil
+	return map[string]any{"ok": true, "lead_id": lid, "message": "Test call started – it appears in the \"" + c.A.BrandName(c) + " test\" lead journey."}, nil
 }
 
 // POST /api/messaging/whatsapp/register – after saving the WhatsApp settings: map the phone number id

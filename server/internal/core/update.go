@@ -267,5 +267,5 @@ func applyUpdate(c *app.Ctx) (any, error) {
 			os.Exit(0)
 		}()
 	})
-	return map[string]any{"ok": true, "message": "Updated to " + rel.Tag + ". Setu restarts now – reload the page in a few seconds."}, nil
+	return map[string]any{"ok": true, "message": "Updated to " + rel.Tag + ". " + c.A.BrandName(c) + " restarts now – reload the page in a few seconds."}, nil
 }

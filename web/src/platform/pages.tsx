@@ -28,7 +28,7 @@ export function Overview() {
     </div>
     <div className="g2">
       <Card title="Sign-ups – last 30 days" ic="activity" c="violet">
-        <div className="pbar">{sign.map(x => <span key={x.day} title={x.day + ': ' + x.n} style={{ height: Math.max(4, (x.n / mx) * 120) }} />)}</div>
+        <div className="pc-pbar">{sign.map(x => <span key={x.day} title={x.day + ': ' + x.n} style={{ height: Math.max(4, (x.n / mx) * 120) }} />)}</div>
       </Card>
       <Card title="Organisations by plan" ic="tag" c="orange" p0>
         <div className="tw"><table className="tbl"><thead><tr><th>Plan</th><th className="num">Organisations</th><th className="num">MRR</th></tr></thead>
@@ -52,7 +52,7 @@ export function Orgs() {
     <select value={plan} onChange={e => setPlan(e.target.value)}><option value="">All plans</option>{plans.data?.plans.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}>
     {!r.data ? <Spinner /> : !r.data.length ? <Empty ic="users" title="No organisations yet">Organisations appear here when customers sign up.</Empty> :
       <div className="tw"><table className="tbl"><thead><tr><th>Organisation</th><th>Owner</th><th>Plan</th><th className="num">Users</th><th>Status</th><th>Joined</th><th>Last seen</th></tr></thead>
-        <tbody>{r.data.map(o => <tr key={o.id} className="clk" onClick={() => go('/admin/orgs/' + o.id)}>
+        <tbody>{r.data.map(o => <tr key={o.id} className="pc-clk" onClick={() => go('/admin/orgs/' + o.id)}>
           <td><b>{o.name}</b><br /><small className="muted">#{o.id} · {o.slug}</small></td><td>{o.owner || '—'}</td>
           <td>{o.plan || '—'}{o.trial_ends_at && new Date(o.trial_ends_at) > new Date() && <> <Badge c="gold">Trial to {date(o.trial_ends_at)}</Badge></>}</td>
           <td className="num">{o.users}</td><td>{statusBadge(o.status)}</td><td>{date(o.created_at)}</td><td>{ago(o.last_seen)}</td></tr>)}</tbody></table></div>}
@@ -137,13 +137,13 @@ export function Plans() {
   const del = async (p: Plan) => { if (confirmDo('Delete the plan ' + p.name + '?') && await act(() => api.del('/platform/plans/' + p.id), 'Deleted.')) qc.invalidateQueries({ queryKey: ['p-plans'] }) }
   return <>
     <div className="row" style={{ marginBottom: 14 }}><p className="muted grow">Limits are enforced immediately. Changing a plan affects every organisation on it; per-organisation overrides live on the organisation page.</p><Btn v="p" ic="plus" onClick={() => setEd({ ...blank })}>New plan</Btn></div>
-    <div className="plans">{q.data.plans.map((p: Plan) => <div key={p.id} className={'card plan' + (p.highlight ? ' hl' : '')}>
+    <div className="pc-plans">{q.data.plans.map((p: Plan) => <div key={p.id} className={'card pc-plan' + (p.highlight ? ' pc-hl' : '')}>
       <div className="row"><h3 className="grow">{p.name}</h3>{p.is_default && <Badge c="blue">Default</Badge>}{!p.public && <Badge>Hidden</Badge>}</div>
       <p className="muted">{p.description}</p>
-      <div className="plan-p"><b>{price(p.price_month, p.currency)}</b>{p.price_month > 0 && <small>/month</small>}</div>
+      <div className="pc-plan-p"><b>{price(p.price_month, p.currency)}</b>{p.price_month > 0 && <small>/month</small>}</div>
       {p.trial_days > 0 && <small className="muted">{p.trial_days}-day trial</small>}
       <ul className="ul">{p.features.map(x => <li key={x}>{x}</li>)}</ul>
-      <div className="plan-l">{keys.map(([k, l]) => <span key={k}><small>{l}</small><b>{p.limits[k] ? num(p.limits[k]) : '∞'}</b></span>)}</div>
+      <div className="pc-plan-l">{keys.map(([k, l]) => <span key={k}><small>{l}</small><b>{p.limits[k] ? num(p.limits[k]) : '∞'}</b></span>)}</div>
       <div className="row mt"><small className="muted grow">{p.orgs} organisation(s) · {p.modules.join(', ')}</small><Btn sm ic="edit" onClick={() => setEd({ ...p })}>Edit</Btn><Btn sm v="ghost" ic="trash" title="Delete" onClick={() => del(p)} /></div>
     </div>)}</div>
     <Modal open={!!ed} onClose={() => setEd(null)} title={ed?.id ? 'Edit ' + ed.name : 'New plan'} ic="tag" c="orange" size="lg">
@@ -222,8 +222,8 @@ export function Branding() {
         {COLORS.map(([k, l]) => <Field key={k} label={l}><span className="row"><input type="color" value={f[k]} onChange={e => set(k, e.target.value)} /><input value={f[k]} onChange={e => set(k, e.target.value)} style={{ width: 110 }} /></span></Field>)}
       </div><Btn sm v="ghost" ic="refresh" onClick={reset}>Reset to default palette</Btn></div>
       <div className="card"><Sec ic="eye" c="teal">Preview</Sec>
-        <div className="bprev" style={pv}><h3 style={{ fontFamily: `'${f.brand_font_heading}', sans-serif` }}>{f.brand_name}</h3><p>{f.brand_tagline}</p>
-          <div className="row"><span className="bprev-b" style={{ background: f.brand_primary }}>Primary</span><span className="bprev-b" style={{ background: f.brand_accent, color: '#111' }}>Confirm order</span><span className="bprev-b" style={{ background: f.brand_success }}>Delivered</span><span className="bprev-b" style={{ background: f.brand_danger }}>Canceled</span></div></div>
+        <div className="pc-bprev" style={pv}><h3 style={{ fontFamily: `'${f.brand_font_heading}', sans-serif` }}>{f.brand_name}</h3><p>{f.brand_tagline}</p>
+          <div className="row"><span className="pc-bprev-b" style={{ background: f.brand_primary }}>Primary</span><span className="pc-bprev-b" style={{ background: f.brand_accent, color: '#111' }}>Confirm order</span><span className="pc-bprev-b" style={{ background: f.brand_success }}>Delivered</span><span className="pc-bprev-b" style={{ background: f.brand_danger }}>Canceled</span></div></div>
       </div>
       <div className="card-f"><Btn v="p" type="submit" ic="check">Save branding</Btn></div>
     </div>
@@ -285,10 +285,10 @@ export function Updates() {
   return <div className="g3r">
     <div className="col">
       <div className="card"><Sec ic="refresh" c="teal">This installation</Sec>
-        <div className="kv"><span>Version</span><b>{d.version}</b><span>Commit</span><b>{d.commit || '—'}</b><span>Build</span><b>{d.asset}</b></div>
+        <div className="pc-kv"><span>Version</span><b>{d.version}</b><span>Commit</span><b>{d.commit || '—'}</b><span>Build</span><b>{d.asset}</b></div>
         {!d.can_self_update && <Alert t="warn">{d.self_update_note}</Alert>}
         {chk && <div className="mt">{chk.available ? <Alert t="ok"><b>{chk.name || chk.tag}</b> is available (published {date(chk.published)}).</Alert> : <Alert>You are up to date with {chk.tag}.</Alert>}
-          {chk.notes && <pre className="notes">{chk.notes}</pre>}</div>}
+          {chk.notes && <pre className="pc-notes">{chk.notes}</pre>}</div>}
         <div className="card-f"><Btn ic="search" busy={busy === 'check'} onClick={check}>Check for updates</Btn>{chk?.available && d.can_self_update && <Btn v="p" ic="download" busy={busy === 'apply'} onClick={apply}>Install update</Btn>}</div>
       </div>
     </div>

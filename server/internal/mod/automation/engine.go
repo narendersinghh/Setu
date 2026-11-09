@@ -627,7 +627,7 @@ func execStep(ctx context.Context, sc *stepCtx) (result, error) {
 		}
 		body := shared.Tpl(text, vars) + "\n\n" + a.Cfg.AppURL() + "/leads/" + strconv.FormatInt(l.ID, 10)
 		// A team notification is not a message to the lead: LeadID 0 keeps it out of the lead's conversation.
-		if _, err := messaging.SendEmail(ctx, a, sc.org, s, messaging.Email{To: to, Subject: "Setu: " + shared.Tpl(sub, vars), Body: body}); err != nil {
+		if _, err := messaging.SendEmail(ctx, a, sc.org, s, messaging.Email{To: to, Subject: a.BrandName(ctx) + ": " + shared.Tpl(sub, vars), Body: body}); err != nil {
 			return skip("Skipped team email – " + errText(err)), nil
 		}
 		return ok("Team notified (" + to + ")"), nil

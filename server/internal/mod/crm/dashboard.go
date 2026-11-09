@@ -145,6 +145,16 @@ FROM leads`)
 		}
 		out["checks"] = checks
 	}
+	// New leads per day for the last 14 days (workspace time zone) – dashboard area chart
+	tz := c.TZ().String()
+	series, err := db.Maps(c, tx, `SELECT to_char(g.d,'YYYY-MM-DD') AS d, COALESCE(x.n,0)::int AS n
+FROM generate_series((now() AT TIME ZONE $1)::date-13, (now() AT TIME ZONE $1)::date, interval '1 day') AS g(d)
+LEFT JOIN (SELECT (l.created_at AT TIME ZONE $1)::date dd, count(*) n FROM leads l WHERE l.is_lead AND l.created_at >= now()-interval '15 days'`+sc+` GROUP BY 1) x ON x.dd=g.d::date
+ORDER BY g.d`, tz)
+	if err != nil {
+		return nil, err
+	}
+	out["series"] = series
 	out["now"] = time.Now()
 	return out, nil
 }

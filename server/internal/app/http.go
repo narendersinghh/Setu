@@ -295,10 +295,22 @@ func nullID(id int64) any {
 	return id
 }
 
-const orgCols = `SELECT o.id,o.slug,o.name,COALESCE(p.name,'') plan,o.plan_id,o.status,
-  COALESCE(o.modules, p.modules, '["crm"]'::jsonb) modules,
-  COALESCE(p.limits,'{}'::jsonb) || COALESCE(o.limits,'{}'::jsonb) limits
-FROM orgs o LEFT JOIN plans p ON p.id=o.plan_id `
+// orgCols loads an organisation with its effective plan: a paid plan whose trial / paid period ended
+// ("expired") runs on the default plan's modules and limits until it is paid again.
+const orgCols = `SELECT o.id,o.slug,o.name,COALESCE(p0.name,'') plan,o.plan_id,o.status,st.v plan_status,
+  COALESCE(o.modules, CASE WHEN st.v='expired' THEN pd.modules ELSE p0.modules END, '["crm"]'::jsonb) modules,
+  COALESCE(CASE WHEN st.v='expired' THEN pd.limits ELSE p0.limits END,'{}'::jsonb) || COALESCE(o.limits,'{}'::jsonb) limits
+FROM orgs o
+LEFT JOIN plans p0 ON p0.id=o.plan_id
+LEFT JOIN plans pd ON pd.is_default
+CROSS JOIN LATERAL (SELECT ` + PlanStatusSQL + ` AS v) st `
+
+// PlanStatusSQL: free | trial | active | expired for orgs o joined with its plan p0.
+const PlanStatusSQL = `CASE WHEN p0.id IS NULL OR (p0.price_month=0 AND p0.price_year=0) THEN 'free'
+  WHEN o.plan_expires_at > now() THEN 'active'
+  WHEN o.trial_ends_at > now() THEN 'trial'
+  WHEN o.plan_expires_at IS NULL AND o.trial_ends_at IS NULL THEN 'active'
+  ELSE 'expired' END`
 
 // OrgByID returns the active organisation (cached for 30 s).
 func (a *App) OrgByID(ctx context.Context, id int64) (*Org, error) { return a.orgByID(ctx, id) }

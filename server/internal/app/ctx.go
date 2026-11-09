@@ -18,14 +18,16 @@ import (
 )
 
 type Org struct {
-	ID      int64          `db:"id" json:"id"`
-	Slug    string         `db:"slug" json:"slug"`
-	Name    string         `db:"name" json:"name"`
-	Plan    string         `db:"plan" json:"plan"` // plan name
-	PlanID  *int64         `db:"plan_id" json:"plan_id"`
-	Status  string         `db:"status" json:"status"`
-	Modules []string       `db:"modules" json:"modules"` // effective: org override, else plan
-	Limits  map[string]int `db:"limits" json:"limits"`   // effective: plan limits merged with org overrides
+	ID     int64  `db:"id" json:"id"`
+	Slug   string `db:"slug" json:"slug"`
+	Name   string `db:"name" json:"name"`
+	Plan   string `db:"plan" json:"plan"` // plan name
+	PlanID *int64 `db:"plan_id" json:"plan_id"`
+	Status string `db:"status" json:"status"`
+	// PlanStatus: free | trial | active | expired (expired runs on the default plan until paid)
+	PlanStatus string         `db:"plan_status" json:"plan_status"`
+	Modules    []string       `db:"modules" json:"modules"` // effective: org override, else plan
+	Limits     map[string]int `db:"limits" json:"limits"`   // effective: plan limits merged with org overrides
 }
 
 // HasModule reports whether the organisation's plan (or override) includes a module.

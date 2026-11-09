@@ -65,6 +65,16 @@ Now copy this **one line**, paste it into the terminal (right-click → Paste) a
 bash -c 'read -rsp "Paste your GitHub token and press Enter: " T </dev/tty; echo; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh || echo "Download failed – check the token and try again."'
 ```
 
+**Token prompt does not accept a paste?** (some browser terminals block pasting into hidden prompts) –
+put the token inside the command instead: paste the line below into Notepad, replace `PASTE_TOKEN_HERE`
+with your token (no spaces), copy the whole line and paste it into the terminal:
+
+```bash
+T=PASTE_TOKEN_HERE; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/install.sh -o /tmp/setu-install.sh && sudo SETU_GITHUB_TOKEN="$T" bash /tmp/setu-install.sh; history -c
+```
+
+`history -c` removes the line (and the token) from the terminal history afterwards.
+
 The installer then asks a few questions – just type the answer and press Enter:
 
 | Question | What to type |
@@ -99,6 +109,20 @@ recovered; if it is changed, they stop working. Never change it.
 
 Running the installer again is safe: it only adds what is missing and never replaces the master key or
 database passwords.
+
+### n8n (or another Docker app) already uses ports 80/443 through Traefik?
+
+Hostinger's n8n / Docker Manager templates run **Traefik**, which holds ports 80/443, so Caddy cannot
+start. Let Caddy serve every site instead (n8n keeps its address and data). With your token in place of
+`PASTE_TOKEN_HERE` (Notepad method from step 5):
+
+```bash
+T=PASTE_TOKEN_HERE; curl -fsSL -H "Authorization: Bearer $T" https://raw.githubusercontent.com/narendersinghh/setu/main/deploy/caddy-takeover.sh -o /tmp/caddy-takeover.sh && sudo bash /tmp/caddy-takeover.sh; history -c
+```
+
+It lists the sites it will move, asks for **y**, switches, and checks each address. Undo any time:
+`sudo bash /tmp/caddy-takeover.sh --undo`. If you later **re-deploy the Traefik project in hPanel's Docker
+Manager**, it takes the ports back – run the script again.
 
 ## 6. First login as platform admin
 
